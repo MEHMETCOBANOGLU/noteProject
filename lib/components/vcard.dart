@@ -31,25 +31,16 @@ class _VCardState extends State<VCard> {
       padding: const EdgeInsets.all(30),
       decoration: BoxDecoration(
         //create gradient for random color each time
-        gradient: LinearGradient(
-          colors: [
-            Color((Random().nextDouble() * 0xFFFFFF).toInt()).withOpacity(1.0),
-            Color((Random().nextDouble() * 0xFFFFFF).toInt()),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Color((Random().nextDouble() * 0xFFFFFF).toInt())
-                .withOpacity(0.3),
-            blurRadius: 8,
+            color: Color.fromARGB(255, 2, 40, 106).withOpacity(0.2),
+            blurRadius: 10,
             offset: const Offset(0, 12),
           ),
           BoxShadow(
-            color: Color((Random().nextDouble() * 0xFFFFFF).toInt())
-                .withOpacity(0.3),
-            blurRadius: 2,
+            color: const Color(0xFFB2DFDB).withOpacity(0.2),
+            blurRadius: 10,
             offset: const Offset(0, 1),
           )
         ],
@@ -66,7 +57,7 @@ class _VCardState extends State<VCard> {
                 child: Text(
                   widget.note.title,
                   style: const TextStyle(
-                      fontSize: 24, fontFamily: "Poppins", color: Colors.white),
+                      fontSize: 24, fontFamily: "Poppins", color: Colors.black),
                 ),
               ),
               const SizedBox(height: 8),
@@ -75,8 +66,8 @@ class _VCardState extends State<VCard> {
                 overflow: TextOverflow.ellipsis,
                 maxLines: 5,
                 softWrap: false,
-                style: TextStyle(
-                    color: Colors.white.withOpacity(0.7), fontSize: 15),
+                style:
+                    TextStyle(color: Colors.black.withOpacity(1), fontSize: 15),
               ),
 
               const SizedBox(height: 8),
