@@ -29,9 +29,19 @@ class HCard extends StatelessWidget {
         constraints: const BoxConstraints(maxHeight: 110),
         padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
         decoration: BoxDecoration(
-          // color: note.color,
-          color: Color((Random().nextDouble() * 0xFFFFFF).toInt())
-              .withOpacity(1.0),
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB2DFDB).withOpacity(0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 12),
+            ),
+            BoxShadow(
+              color: Color.fromARGB(255, 2, 40, 106).withOpacity(0.5),
+              blurRadius: 10,
+              offset: const Offset(0, 1),
+            )
+          ],
           borderRadius: BorderRadius.circular(30),
         ),
         child: Row(
@@ -46,7 +56,7 @@ class HCard extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 24,
                         fontFamily: "Poppins",
-                        color: Colors.white),
+                        color: Colors.black),
                   ),
                   const SizedBox(height: 8),
                   // Text(
@@ -67,7 +77,7 @@ class HCard extends StatelessWidget {
                   showEditDialog(context, note);
                 },
                 icon: const Icon(Icons.edit_note_rounded,
-                    size: 30, color: Colors.white)),
+                    size: 30, color: Colors.black)),
             // Image.asset(section.image)
           ],
         ),
