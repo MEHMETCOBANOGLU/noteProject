@@ -3,12 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:proje1/components/hcard.dart';
 import 'package:proje1/components/vcard.dart';
 import 'package:proje1/data/firestore.dart';
-import 'package:proje1/model/courses.dart';
-
-import '../const/theme.dart';
+import 'package:stacked_card_carousel/stacked_card_carousel.dart';
+import '../model/courses.dart';
 
 class HomeTabView extends StatefulWidget {
-  // final NoteModel note;
   const HomeTabView({
     Key? key,
   }) : super(key: key);
@@ -18,29 +16,35 @@ class HomeTabView extends StatefulWidget {
 }
 
 class _HomeTabViewState extends State<HomeTabView> {
-  // final List<CourseModel> _courses = CourseModel.courses;
-  // final List<CourseModel> _courseSections = CourseModel.courseSections;
   late List<NoteModel> _notesList = [];
+  late PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  void _resetCards() {
+    _pageController.animateToPage(
+      0,
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body:
-          //  Container(
-          //   clipBehavior: Clip.hardEdge,
-          //   decoration: BoxDecoration(
-          //     color: RiveAppTheme.background,
-          //     borderRadius: BorderRadius.circular(30),
-          //   ),
-          //   child:
-          SingleChildScrollView(
+      body: SingleChildScrollView(
         padding: EdgeInsets.only(
             top: MediaQuery.of(context).padding.top + 60,
             bottom: MediaQuery.of(context).padding.bottom),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Title for Notes
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: Text(
@@ -54,6 +58,7 @@ class _HomeTabViewState extends State<HomeTabView> {
                 ),
               ),
             ),
+            // Horizontal Scrollable Section for VCards
             SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(10, 10, 10, 20),
               scrollDirection: Axis.horizontal,
@@ -82,6 +87,7 @@ class _HomeTabViewState extends State<HomeTabView> {
                 },
               ),
             ),
+            // Title for Edit Notes
             Padding(
               padding: EdgeInsets.only(left: 20, right: 20, bottom: 20),
               child: Text(
@@ -95,22 +101,38 @@ class _HomeTabViewState extends State<HomeTabView> {
                 ),
               ),
             ),
+            // Wrap StackedCardCarousel with a fixed height
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Wrap(
-                children: List.generate(
-                  _notesList.length,
-                  (index) => Container(
-                    key: ValueKey(_notesList[index].id),
-                    width: MediaQuery.of(context).size.width > 992
-                        ? ((MediaQuery.of(context).size.width - 20) / 2)
-                        : MediaQuery.of(context).size.width,
-                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 20),
-                    child: HCard(note: _notesList[index]),
-                  ),
+              child: GestureDetector(
+                onTap: _resetCards,
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: Firestore_Datasource().stream(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return CircularProgressIndicator();
+                    }
+
+                    _notesList = Firestore_Datasource()
+                        .getNotes(snapshot)
+                        .cast<NoteModel>();
+
+                    return Container(
+                      height: 300, // Set the height for the stacked cards
+                      child: StackedCardCarousel(
+                        pageController: _pageController,
+                        items: _notesList
+                            .map((note) => HCard(note: note))
+                            .toList(),
+                        type: StackedCardCarouselType.cardsStack,
+                        initialOffset: 1,
+                        spaceBetweenItems: 50,
+                      ),
+                    );
+                  },
                 ),
               ),
-            )
+            ),
           ],
         ),
       ),
