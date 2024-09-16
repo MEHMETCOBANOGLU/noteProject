@@ -1,53 +1,118 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:proje1/components/hcard.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:proje1/data/firestore.dart';
 import 'package:proje1/model/courses.dart';
-import 'package:stacked_card_carousel/stacked_card_carousel.dart';
 
-class HomeTabView extends StatefulWidget {
-  const HomeTabView({Key? key}) : super(key: key);
+class EditNotes extends StatefulWidget {
+  final NoteModel note; // Bu nesne edit sayfasına gelecek
+
+  const EditNotes({Key? key, required this.note}) : super(key: key);
 
   @override
-  State<HomeTabView> createState() => _HomeTabViewState();
+  State<EditNotes> createState() => _EditNotesState();
 }
 
-class _HomeTabViewState extends State<HomeTabView> {
-  late List<NoteModel> _notesList = [];
+class _EditNotesState extends State<EditNotes> {
+  late TextEditingController _titleController;
+  late TextEditingController _subtitleController;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.note.title);
+    _subtitleController = TextEditingController(text: widget.note.subtitle);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: SingleChildScrollView(
-        padding: EdgeInsets.only(
-            top: MediaQuery.of(context).padding.top + 60,
-            bottom: MediaQuery.of(context).padding.bottom),
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+      surfaceTintColor: const Color(0x00ffffff),
+      backgroundColor: const Color(0x00ffffff),
+      child: Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color((Random().nextDouble() * 0xFFFFFF).toInt())
+                  .withOpacity(1.0),
+              Color((Random().nextDouble() * 0xFFFFFF).toInt())
+                  .withOpacity(1.0),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Color((Random().nextDouble() * 0xFFFFFF).toInt())
+                  .withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 12),
+            ),
+            BoxShadow(
+              color: Color((Random().nextDouble() * 0xFFFFFF).toInt())
+                  .withOpacity(0.3),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
+          borderRadius: BorderRadius.circular(30),
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            buildStackedCardCarousel(),
-            // Diğer widget'larınız...
+            const SizedBox(height: 20),
+            TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                hintText: "Title",
+                hintStyle: TextStyle(color: Colors.white),
+                border: InputBorder.none,
+              ),
+              cursorColor: Colors.white,
+            ),
+            const Divider(
+              color: Colors.white,
+              thickness: 0.4,
+            ),
+            TextField(
+              controller: _subtitleController,
+              decoration: const InputDecoration(
+                hintText: "Subtitle",
+                hintStyle: TextStyle(color: Colors.white),
+                border: InputBorder.none,
+              ),
+              cursorColor: Colors.white,
+              maxLines: 6,
+            ),
+            const Divider(
+              color: Colors.white,
+              thickness: 0.4,
+            ),
+            TextButton(
+              onPressed: () {
+                Firestore_Datasource().Update_Note(widget.note.id,
+                    _titleController.text, _subtitleController.text);
+
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Edit',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget buildStackedCardCarousel() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: Firestore_Datasource().stream(),
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          _notesList =
-              Firestore_Datasource().getNotes(snapshot).cast<NoteModel>();
-          return StackedCardCarousel(
-            items: _notesList.map((note) => HCard(note: note)).toList(),
-          );
-        } else {
-          return Center(child: CircularProgressIndicator());
-        }
-      },
-    );
-  }
+void showEditDialog(BuildContext context, NoteModel note) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return EditNotes(note: note); // NoteModel nesnesi burada geçiliyor
+    },
+  );
 }

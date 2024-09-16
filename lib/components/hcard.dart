@@ -26,7 +26,7 @@ class HCard extends StatelessWidget {
         child: const Icon(Icons.delete_sweep, color: Colors.red, size: 30),
       ),
       child: Container(
-        constraints: const BoxConstraints(maxHeight: 110),
+        constraints: const BoxConstraints(maxHeight: 80, maxWidth: 360),
         padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -53,6 +53,9 @@ class HCard extends StatelessWidget {
                 children: [
                   Text(
                     note.title,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    softWrap: false,
                     style: const TextStyle(
                         fontSize: 24,
                         fontFamily: "Poppins",
@@ -69,12 +72,17 @@ class HCard extends StatelessWidget {
             ),
             const Padding(
               padding: EdgeInsets.all(20),
-              child: VerticalDivider(thickness: 0.8, width: 0),
+              child: VerticalDivider(
+                thickness: 0.9,
+                width: 0,
+              ),
             ),
             IconButton(
                 onPressed: () {
-                  // Note nesnesini edit dialog'a gönderiyoruz
-                  showEditDialog(context, note);
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) => EditNotes(
+                            note: note,
+                          )));
                 },
                 icon: const Icon(Icons.edit_note_rounded,
                     size: 30, color: Colors.black)),
