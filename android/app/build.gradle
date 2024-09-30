@@ -26,6 +26,11 @@ if (flutterVersionName == null) {
     flutterVersionName = "1.0"
 }
 
+def keyProperties = new Properties()
+def keyPropertiesFile = rootProject.file('key.properties')
+if(keyPropertiesFile.exists()){
+    keyProperties.load(new FileInputStream(keyPropertiesFile))
+}
 android {
     namespace = "com.example.proje1"
     compileSdk = flutter.compileSdkVersion
@@ -47,6 +52,15 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
+    }
+
+    signingConfigs{
+        release{
+            keyAlias keyProperties['keyAlias']
+            keyPassword keyProperties['keyPassword']
+            storeFile file(keyProperties['storeFile'])
+            storePassword keyProperties['storePassword']
+        }
     }
 
     buildTypes {
