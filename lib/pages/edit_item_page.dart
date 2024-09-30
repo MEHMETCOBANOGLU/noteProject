@@ -271,116 +271,118 @@ class _EditItemPageState extends State<EditItemPage> {
                   ),
                 ),
               ),
+              const SizedBox(height: 10),
               Expanded(
-                child: ListView.builder(
-                  itemCount: _itemControllers.length + 1,
+                child: ReorderableListView.builder(
+                  itemCount: _itemControllers.length, // Only the list items
+                  onReorder: (int oldIndex, int newIndex) {
+                    setState(() {
+                      if (newIndex > oldIndex) {
+                        newIndex -= 1;
+                      }
+                      final controller = _itemControllers.removeAt(oldIndex);
+                      final image = _selectedImages.removeAt(oldIndex);
+                      final imagePath = _existingImagePaths.removeAt(oldIndex);
+                      _itemControllers.insert(newIndex, controller);
+                      _selectedImages.insert(newIndex, image);
+                      _existingImagePaths.insert(newIndex, imagePath);
+                    });
+                  },
                   itemBuilder: (context, index) {
-                    if (index < _itemControllers.length) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                key: _menuKeys[index],
-                                controller: _itemControllers[index],
-                                keyboardType: TextInputType.multiline,
-                                minLines: 1,
-                                maxLines: null,
-                                decoration: InputDecoration(
-                                  hintText: 'Item ${index + 1}',
-                                  prefixIcon: (index <
-                                              _existingImagePaths.length &&
-                                          _existingImagePaths[index] != null &&
-                                          _existingImagePaths[index]!
-                                              .isNotEmpty)
-                                      ? Padding(
-                                          padding: const EdgeInsets.only(
-                                              right: 8.0, bottom: 8.0),
-                                          child: Image.file(
-                                            File(_existingImagePaths[index]!),
-                                            width: 40,
-                                            height: 40,
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) =>
-                                                    const Icon(Icons.error),
-                                          ),
-                                        )
-                                      : Icon(Icons.image,
-                                          size: 50,
-                                          color: Colors.grey.shade400),
-                                  suffixIcon: SizedBox(
-                                    width:
-                                        70, // Ensures the Stack has a finite width
-                                    height:
-                                        40, // Ensures the Stack has a finite height
-                                    child: Stack(
-                                      children: [
-                                        Positioned(
-                                          left:
-                                              0, // First icon positioned at the start
-                                          child: IconButton(
-                                            icon: const Icon(
-                                                Icons.more_vert_sharp),
-                                            padding: EdgeInsets
-                                                .zero, // No padding around the icon
-                                            constraints:
-                                                const BoxConstraints(), // No extra space constraints
-                                            onPressed: () {
-                                              _showCustomMenu(context, index,
-                                                  _menuKeys[index]);
-                                            },
-                                          ),
-                                        ),
-                                        Positioned(
-                                          left:
-                                              30, // Position the second icon close to the first
-                                          child: IconButton(
-                                            icon: const Icon(
-                                                Icons.remove_circle_outline,
-                                                color: Colors.red),
-                                            padding: EdgeInsets
-                                                .zero, // No padding around the icon
-                                            constraints:
-                                                const BoxConstraints(), // No extra space constraints
-                                            onPressed: () {
-                                              _removeItemField(index);
-                                            },
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      key: ValueKey(index),
+                      leading: ReorderableDragStartListener(
+                        index: index,
+                        child: const Icon(
+                          Icons.drag_handle,
+                          size: 20,
+                        ),
+                      ),
+                      title: TextField(
+                        key: _menuKeys[index],
+                        controller: _itemControllers[index],
+                        keyboardType: TextInputType.multiline,
+                        minLines: 1,
+                        maxLines: null,
+                        decoration: InputDecoration(
+                          hintText: 'Item ${index + 1}',
+                          prefixIcon: (index < _existingImagePaths.length &&
+                                  _existingImagePaths[index] != null &&
+                                  _existingImagePaths[index]!.isNotEmpty)
+                              ? Padding(
+                                  padding: const EdgeInsets.only(
+                                      right: 8.0, bottom: 8.0),
+                                  child: Image.file(
+                                    File(_existingImagePaths[index]!),
+                                    width: 40,
+                                    height: 40,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const Icon(Icons.error),
+                                  ),
+                                )
+                              : Icon(Icons.image,
+                                  size: 50, color: Colors.grey.shade400),
+                          suffixIcon: SizedBox(
+                            width: 70,
+                            height: 40,
+                            child: Stack(
+                              children: [
+                                Positioned(
+                                  left: 0,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.more_vert_sharp),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () {
+                                      _showCustomMenu(
+                                          context, index, _menuKeys[index]);
+                                    },
                                   ),
                                 ),
-                              ),
+                                Positioned(
+                                  left: 30,
+                                  child: IconButton(
+                                    icon: const Icon(
+                                        Icons.remove_circle_outline,
+                                        color: Colors.red),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () {
+                                      _removeItemField(index);
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      );
-                    } else {
-                      return GestureDetector(
-                        onTap: _addItemField,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4.0),
-                          padding: const EdgeInsets.all(16.0),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.green),
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.add, color: Colors.green),
-                              SizedBox(width: 8),
-                              Text("Add Item",
-                                  style: TextStyle(color: Colors.green)),
-                            ],
                           ),
                         ),
-                      );
-                    }
+                      ),
+                    );
                   },
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Add Item button outside of ReorderableListView
+              GestureDetector(
+                onTap: _addItemField,
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4.0),
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.green),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add, color: Colors.green),
+                      SizedBox(width: 8),
+                      Text("Add Item", style: TextStyle(color: Colors.green)),
+                    ],
+                  ),
                 ),
               ),
             ],
