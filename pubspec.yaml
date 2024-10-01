@@ -43,6 +43,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_image_clipboard: ^1.0.0
+  flutter_langdetect: ^0.0.2
   get: ^4.6.6
   http: ^1.2.2
   image: ^4.2.0

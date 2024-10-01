@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:proje1/data/database.dart';
 import 'dart:io';
 import 'package:proje1/model/items.dart';
 import 'package:proje1/pages/show_image_page.dart';
@@ -27,6 +28,7 @@ class ListItem extends StatefulWidget {
 class _ListItemState extends State<ListItem> {
   late bool isLocalExpanded; // Her öğenin kendi genişletme durumu
   static const platform = MethodChannel('clipboard_image');
+  final RegExp dilPattern = RegExp(r'\[Dil:(.*?)\]');
 
   @override
   void initState() {
@@ -96,6 +98,102 @@ class _ListItemState extends State<ListItem> {
       //   ),
       // );
     }
+  }
+
+  void _handleTapOnText(String text) {
+    final RegExpMatch? match = dilPattern.firstMatch(text);
+
+    if (match != null) {
+      // Mevcut dil bilgisini alıyoruz
+      String currentDil = match.group(1) ?? "İngilizce";
+
+      // Dialog'u açalım ve dil güncellemesini sağlayalım
+      _showLanguageDialog(currentDil, (updatedDil) async {
+        setState(() {
+          // Metindeki dil bilgisini güncelleyerek metni tekrar oluşturuyoruz
+          String updatedText = text.replaceAll(dilPattern, '[Dil:$updatedDil]');
+
+          // expandedValue'yu güncelliyoruz
+          int index = widget.item.expandedValue.indexOf(text);
+          if (index != -1) {
+            // Güncellenen değeri expandedValue içinde ilgili index'e yazıyoruz
+            widget.item.expandedValue[index] = updatedText;
+          }
+        });
+
+        // Notu veritabanında güncelle
+        await SQLiteDatasource().updateNote(
+          widget.item.id,
+          widget.item.headerValue,
+          widget.item.subtitle ?? '',
+          widget.item.expandedValue,
+          widget.item.imageUrls ?? [],
+        );
+
+        // UI'yi güncellemek için onTableEdited çağrılıyor
+        widget.onTableEdited();
+      });
+    }
+  }
+
+  void _showLanguageDialog(String currentDil, Function(String) onUpdated) {
+    TextEditingController dilController =
+        TextEditingController(text: currentDil);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        // StatefulBuilder ile dialog içindeki durumu güncellemek için state yönetimi sağlıyoruz
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(
+                  "Şu andan itibaren benim [Dil:${dilController.text}] öğretmenimsin."), // Dinamik dil
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("Dil:"),
+                  TextField(
+                    controller: dilController,
+                    decoration:
+                        const InputDecoration(hintText: "Dil adı girin"),
+                    onChanged: (value) {
+                      // Kullanıcı TextField'a yeni bir şey yazdıkça başlığı güncelle
+                      setState(() {
+                        // Başlığı dinamik olarak güncellemek için dil bilgisini kullanıyoruz
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: const Text("İptal"),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Dialog'u kapat
+                  },
+                ),
+                ElevatedButton(
+                  child: const Text("Tamam"),
+                  onPressed: () {
+                    // Dialog'dan gelen dil bilgisini geri döndürüyoruz
+                    onUpdated(dilController.text);
+                    Navigator.of(context).pop(); // Dialog'u kapat
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _getDisplayText(String text) {
+    // [Dil:...] şeklindeki kısmı yakalayıp sadece dil adını gösterelim
+    return text.replaceAllMapped(dilPattern, (match) {
+      return match.group(1) ?? 'Dil';
+    });
   }
 
   @override
@@ -168,8 +266,14 @@ class _ListItemState extends State<ListItem> {
                     minVerticalPadding: 10,
                     minLeadingWidth: 10,
                     minTileHeight: 10,
-                    title: Text(text),
-                    leading: InkWell(
+                    title: GestureDetector(
+                        onLongPress: () {
+                          _handleTapOnText(
+                              text); // Metin uzun basılırsa [Dil] kısmını kontrol et ve dialog aç
+                          print(text);
+                        },
+                        child: Text(_getDisplayText(text))),
+                    leading: GestureDetector(
                       onTap: imageUrl != null
                           ? () {
                               Navigator.push(

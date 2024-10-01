@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:proje1/data/database.dart';
+import 'package:proje1/pages/aym_guide_page.dart';
 import 'package:uuid/uuid.dart';
 import '../model/items.dart';
 
@@ -22,10 +23,7 @@ class _AddItemPageState extends State<AddItemPage> {
     TextEditingController()
   ];
   final ImagePicker _picker = ImagePicker();
-  // final List<String?> _base64Images = [null]; // Storing Base64 image strings
-  final List<String?> _imagePaths = [null]; // Dosya yollarını saklamak için
-
-  // final GlobalKey _menuKey = GlobalKey();
+  final List<String?> _imagePaths = [null];
   List<GlobalKey> _menuKeys = [];
 
   final SQLiteDatasource _sqliteDatasource =
@@ -43,21 +41,17 @@ class _AddItemPageState extends State<AddItemPage> {
           _itemControllers.map((controller) => controller.text).toList();
       List<String> imagePaths = _imagePaths.map((path) => path ?? "").toList();
 
-      // Aynı başlıkta bir not olup olmadığını kontrol et
       bool noteExists =
           await _sqliteDatasource.noteExistsWithTitle(_titleController.text);
 
       if (noteExists) {
-        // Aynı başlığa sahip not var, kullanıcıdan onay alalım
         bool overwriteConfirmed = await _showOverwriteDialog();
 
         if (!overwriteConfirmed) {
-          // Kullanıcı işlemi iptal etti, return yaparak devam etmiyoruz
           return;
         }
       }
 
-      // Kullanıcıdan onay alındıysa veya aynı başlıkta not yoksa notu ekle/güncelle
       bool success = await _sqliteDatasource.addOrUpdateNote(
         Item(
           id: const Uuid().v4(),
@@ -81,7 +75,6 @@ class _AddItemPageState extends State<AddItemPage> {
     }
   }
 
-// Kullanıcıdan üzerine yazma işlemi için onay almak için bir pop-up (dialog) gösteriyoruz
   Future<bool> _showOverwriteDialog() async {
     return await showDialog<bool>(
           context: context,
@@ -97,7 +90,7 @@ class _AddItemPageState extends State<AddItemPage> {
                     style: TextStyle(color: Colors.black),
                   ),
                   onPressed: () {
-                    Navigator.of(context).pop(false); // Kullanıcı iptal etti
+                    Navigator.of(context).pop(false);
                   },
                 ),
                 TextButton(
@@ -105,14 +98,14 @@ class _AddItemPageState extends State<AddItemPage> {
                       style: TextStyle(
                           color: Colors.green, fontWeight: FontWeight.bold)),
                   onPressed: () {
-                    Navigator.of(context).pop(true); // Kullanıcı onayladı
+                    Navigator.of(context).pop(true);
                   },
                 ),
               ],
             );
           },
         ) ??
-        false; // Eğer kullanıcı dialogu kapatırsa false döner
+        false;
   }
 
   Future<void> _pickImage(int index) async {
@@ -120,10 +113,8 @@ class _AddItemPageState extends State<AddItemPage> {
     if (image != null) {
       File file = File(image.path);
 
-      // Dosya yolunu saklayın
       String imagePath = file.path;
 
-      // _imagePaths listesinde dosya yolunu güncelleyin
       if (_imagePaths.length > index) {
         setState(() {
           _imagePaths[index] = imagePath;
@@ -135,7 +126,7 @@ class _AddItemPageState extends State<AddItemPage> {
   void _addItemField() {
     setState(() {
       _itemControllers.add(TextEditingController());
-      _imagePaths.add(null); // Keep it null initially
+      _imagePaths.add(null);
       _menuKeys.add(GlobalKey());
     });
   }
@@ -169,10 +160,10 @@ class _AddItemPageState extends State<AddItemPage> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
       context: context,
       position: RelativeRect.fromLTRB(
-        offset.dx, // Left
-        offset.dy + renderBox.size.height, // Top
-        offset.dx + renderBox.size.width, // Right
-        offset.dy, // Bottom
+        offset.dx,
+        offset.dy + renderBox.size.height,
+        offset.dx + renderBox.size.width,
+        offset.dy,
       ),
       items: [
         PopupMenuItem(
@@ -181,7 +172,7 @@ class _AddItemPageState extends State<AddItemPage> {
             title: const Text('Resim Ekle'),
             onTap: () async {
               Navigator.pop(context);
-              await _pickImage(index); // Use the image picker function
+              await _pickImage(index);
             },
           ),
         ),
@@ -210,6 +201,17 @@ class _AddItemPageState extends State<AddItemPage> {
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Center(child: const Text('Yeni Tablo Ekle')),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.info_outline),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AymGuidePage()),
+              );
+            },
+          ),
+        ],
       ),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
@@ -239,8 +241,8 @@ class _AddItemPageState extends State<AddItemPage> {
               TextField(
                 controller: _titleController,
                 keyboardType: TextInputType.multiline,
-                minLines: 1, // At least one line
-                maxLines: null, // Allow multiline expansion
+                minLines: 1,
+                maxLines: null,
                 decoration: const InputDecoration(
                   hintText: 'Başlık',
                   hintStyle: TextStyle(fontStyle: FontStyle.italic),
@@ -253,8 +255,8 @@ class _AddItemPageState extends State<AddItemPage> {
                 child: TextField(
                   controller: _subtitleController,
                   keyboardType: TextInputType.multiline,
-                  minLines: 1, // At least one line
-                  maxLines: null, // Allow multiline expansion
+                  minLines: 1,
+                  maxLines: null,
                   decoration: const InputDecoration(
                     hintText: 'Alt Başlık',
                     hintStyle: TextStyle(fontStyle: FontStyle.italic),
@@ -278,8 +280,8 @@ class _AddItemPageState extends State<AddItemPage> {
                               child: TextField(
                                 controller: _itemControllers[index],
                                 keyboardType: TextInputType.multiline,
-                                minLines: 1, // At least one line
-                                maxLines: null, // Allow multiline expansion
+                                minLines: 1,
+                                maxLines: null,
                                 decoration: InputDecoration(
                                   hintText: 'Item ${index + 1}',
                                   prefixIcon: _imagePaths[index] != null
@@ -298,8 +300,7 @@ class _AddItemPageState extends State<AddItemPage> {
                                         )
                                       : Icon(Icons.image,
                                           size: 50,
-                                          color: Colors.grey
-                                              .shade400), // Display default icon if no image
+                                          color: Colors.grey.shade400),
                                   suffixIcon: SizedBox(
                                     width: 70,
                                     height: 40,
@@ -316,8 +317,7 @@ class _AddItemPageState extends State<AddItemPage> {
                                             onPressed: () => _showCustomMenu(
                                               context,
                                               index,
-                                              _menuKeys[
-                                                  index], // Use unique key here
+                                              _menuKeys[index],
                                             ),
                                           ),
                                         ),
