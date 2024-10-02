@@ -75,8 +75,8 @@ class SQLiteDatasource {
         'id': uuid,
         'title': item.headerValue,
         'subtitle': item.subtitle,
-        'items': item.expandedValue.join(','), // Listeyi string'e çeviriyoruz
-        'imageUrls': item.imageUrls?.join(',') ?? '',
+        'items': item.expandedValue.join('||'), // Listeyi string'e çeviriyoruz
+        'imageUrls': item.imageUrls?.join('||') ?? '',
         'isExpanded': item.isExpanded ? 1 : 0,
         'order': order,
       });
@@ -97,7 +97,7 @@ class SQLiteDatasource {
       );
 
       if (maps.isEmpty) {
-        print("No data found in database."); // Veritabanında veri yoksa
+        print("No data found in database.");
         return [];
       }
 
@@ -105,9 +105,10 @@ class SQLiteDatasource {
         return Item(
           id: maps[i]['id'],
           headerValue: maps[i]['title'],
-          expandedValue: maps[i]['items'].split(','),
+          expandedValue: maps[i]['items'].split('||'), // '||' ile ayırıyoruz
           subtitle: maps[i]['subtitle'],
-          imageUrls: maps[i]['imageUrls'].split(','),
+          imageUrls: maps[i]['imageUrls']
+              .split('||'), // imageUrls için de '||' kullanıyoruz
           isExpanded: maps[i]['isExpanded'] == 1,
         );
       });
@@ -126,8 +127,8 @@ class SQLiteDatasource {
         {
           'title': title,
           'subtitle': subtitle,
-          'items': items.join(','),
-          'imageUrls': imageUrls.join(','),
+          'items': items.join('||'),
+          'imageUrls': imageUrls.join('||'),
         },
         where: 'id = ?',
         whereArgs: [id],
@@ -226,9 +227,10 @@ class SQLiteDatasource {
           {
             'title': item.headerValue,
             'subtitle': item.subtitle,
-            'items':
-                item.expandedValue.join(','), // Listeyi string'e çeviriyoruz
-            'imageUrls': item.imageUrls?.join(',') ?? '',
+            'items': item.expandedValue
+                .join('||'), // Listeyi '||' ile string'e çeviriyoruz
+            'imageUrls': item.imageUrls?.join('||') ??
+                '', // Aynı işlemi imageUrls için de yapıyoruz
           },
           where: 'title = ?',
           whereArgs: [item.headerValue],
@@ -244,8 +246,10 @@ class SQLiteDatasource {
           'id': uuid,
           'title': item.headerValue,
           'subtitle': item.subtitle,
-          'items': item.expandedValue.join(','), // Listeyi string'e çeviriyoruz
-          'imageUrls': item.imageUrls?.join(',') ?? '',
+          'items':
+              item.expandedValue.join('||'), // Listeyi string'e çeviriyoruz
+          'imageUrls': item.imageUrls?.join('||') ??
+              '', // imageUrls için de '||' kullanıyoruz
           'isExpanded': item.isExpanded ? 1 : 0,
           'order': order,
         });

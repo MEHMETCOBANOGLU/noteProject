@@ -44,7 +44,13 @@ class _ListItemState extends State<ListItem> {
   Future<void> _copyText(String text) async {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Metin panoya kopyalandı!')),
+      SnackBar(
+        content: Text(
+          text.length > 30
+              ? '${text.substring(0, 30)}... panoya kopyalandı!'
+              : '$text panoya kopyalandı!',
+        ),
+      ),
     );
   }
 
@@ -106,11 +112,25 @@ class _ListItemState extends State<ListItem> {
                         ? null
                         : Text(widget.item.subtitle!),
                     visualDensity: VisualDensity.compact,
-                    onTap: () {
-                      setState(() {
-                        isLocalExpanded = !isExpanded;
-                        widget.onExpandedChanged(isLocalExpanded);
-                      });
+                    onTap: () async {
+                      // '||' ile ayrılmış metinleri böl
+                      List<String> texts =
+                          widget.item.expandedValue.join('||').split('||');
+
+                      for (String text in texts) {
+                        // Her öğeyi kopyala
+                        Clipboard.setData(ClipboardData(text: text));
+
+                        // Küçük bir gecikme ekle (örneğin 500 ms)
+                        await Future.delayed(const Duration(milliseconds: 500));
+                      }
+
+                      // İşlem tamamlandığında bildirim göster
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content:
+                                Text('Tablonun itemleri panoya kopyalandı!')),
+                      );
                     },
                   ),
                 ),
