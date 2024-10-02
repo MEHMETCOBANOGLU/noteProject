@@ -8,6 +8,7 @@ import 'package:proje1/data/database.dart';
 import 'package:proje1/pages/aym_guide_page.dart';
 import 'package:uuid/uuid.dart';
 import '../model/items.dart';
+import '../utility/list_box.dart';
 
 class AddItemPage extends StatefulWidget {
   const AddItemPage({super.key});
@@ -22,10 +23,15 @@ class _AddItemPageState extends State<AddItemPage> {
   final List<TextEditingController> _itemControllers = [
     TextEditingController()
   ];
+  final TextEditingController _newOptionController = TextEditingController();
+
   final ImagePicker _picker = ImagePicker();
   final List<String?> _imagePaths = [null];
   List<GlobalKey> _menuKeys = [];
   bool _isTitleEmpty = false;
+  List<String> options = [];
+  String? selectedOption;
+  bool _isAddingNewOption = false;
 
   final SQLiteDatasource _sqliteDatasource =
       SQLiteDatasource(); // SQLite veritabanı kullanımı
@@ -34,6 +40,17 @@ class _AddItemPageState extends State<AddItemPage> {
   void initState() {
     super.initState();
     _menuKeys = List.generate(_itemControllers.length, (index) => GlobalKey());
+
+    // selectedOption = options.first;
+    _loadOptionsFromDatabase();
+  }
+
+  Future<void> _loadOptionsFromDatabase() async {
+    List<String> dbOptions = await _sqliteDatasource.getOptions();
+    setState(() {
+      options = dbOptions;
+      selectedOption = options.isNotEmpty ? options.first : null;
+    });
   }
 
   Future<void> _addNote() async {
@@ -196,8 +213,48 @@ class _AddItemPageState extends State<AddItemPage> {
             },
           ),
         ),
+        PopupMenuItem(
+          child: ListTile(
+            leading: const Icon(Icons.list),
+            title: const Text('Liste Kutusu'),
+            onTap: () {
+              Navigator.pop(context);
+              showListBoxDialog(
+                  context,
+                  index,
+                  _itemControllers,
+                  options,
+                  _newOptionController,
+                  _isAddingNewOption,
+                  setState,
+                  _addNewOption, // Seçenek ekleme
+                  _removeOption // Seçenek silme
+                  );
+            },
+          ),
+        ),
       ],
     );
+  }
+
+  void _removeOption(int index) {
+    setState(() {
+      options.removeAt(index); // İlgili indeksteki elemanı sil
+    });
+  }
+
+  void _addNewOption(String value) async {
+    if (value.isNotEmpty && !options.contains(value)) {
+      setState(() {
+        options.add(value);
+        _newOptionController.clear();
+        _isAddingNewOption = false; // Ekleme işlemi bitince gizle
+      });
+
+      // Yeni seçeneği veritabanına ekle
+      print("Yeni seçenek ekleniyor: $value"); // Loglama ekleyin
+      await _sqliteDatasource.addOption(value); // Veritabanı ekleme fonksiyonu
+    }
   }
 
   @override

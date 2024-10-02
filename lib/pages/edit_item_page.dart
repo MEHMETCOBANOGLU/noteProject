@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:proje1/model/items.dart';
+import 'package:proje1/utility/list_box.dart';
 
 import '../data/database.dart';
 import 'package:image/image.dart' as img; // For image manipulation
@@ -24,7 +25,10 @@ class _EditItemPageState extends State<EditItemPage> {
   List<File?> _selectedImages = [];
   List<String?> _existingImagePaths = []; // Dosya yollarını saklamak için liste
   List<GlobalKey> _menuKeys = [];
-
+  final TextEditingController _newOptionController = TextEditingController();
+  List<String> options = [];
+  String? selectedOption;
+  bool _isAddingNewOption = false;
   final SQLiteDatasource _sqliteDatasource =
       SQLiteDatasource(); // SQLite veritabanı kullanımı
 
@@ -45,6 +49,16 @@ class _EditItemPageState extends State<EditItemPage> {
     );
 
     _menuKeys = List.generate(_itemControllers.length, (index) => GlobalKey());
+    bool _isAddingNewOption = false;
+    _loadOptionsFromDatabase();
+  }
+
+  Future<void> _loadOptionsFromDatabase() async {
+    List<String> dbOptions = await _sqliteDatasource.getOptions();
+    setState(() {
+      options = dbOptions;
+      selectedOption = options.isNotEmpty ? options.first : null;
+    });
   }
 
   Future<void> _saveNote() async {
@@ -154,8 +168,48 @@ class _EditItemPageState extends State<EditItemPage> {
             },
           ),
         ),
+        PopupMenuItem(
+          child: ListTile(
+            leading: const Icon(Icons.list),
+            title: const Text('Liste Kutusu'),
+            onTap: () {
+              Navigator.pop(context);
+              showListBoxDialog(
+                  context,
+                  index,
+                  _itemControllers,
+                  options,
+                  _newOptionController,
+                  _isAddingNewOption,
+                  setState,
+                  _addNewOption, // Seçenek ekleme
+                  _removeOption // Seçenek silme
+                  );
+            },
+          ),
+        ),
       ],
     );
+  }
+
+  void _removeOption(int index) {
+    setState(() {
+      options.removeAt(index); // İlgili indeksteki elemanı sil
+    });
+  }
+
+  void _addNewOption(String value) async {
+    if (value.isNotEmpty && !options.contains(value)) {
+      setState(() {
+        options.add(value);
+        _newOptionController.clear();
+        _isAddingNewOption = false; // Ekleme işlemi bitince gizle
+      });
+
+      // Yeni seçeneği veritabanına ekle
+      print("Yeni seçenek ekleniyor: $value"); // Loglama ekleyin
+      await _sqliteDatasource.addOption(value); // Veritabanı ekleme fonksiyonu
+    }
   }
 
   void _deleteTable(BuildContext context) async {
