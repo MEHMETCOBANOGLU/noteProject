@@ -154,7 +154,7 @@ class _AymGuidePageState extends State<AymGuidePage> {
                             decoration: BoxDecoration(
                               color: currentPage == index
                                   ? Colors.green
-                                  : Colors.grey,
+                                  : Colors.green[100],
                               borderRadius: BorderRadius.circular(20),
                             ),
                           ),
@@ -169,14 +169,14 @@ class _AymGuidePageState extends State<AymGuidePage> {
                         height: height * 0.05,
                         width: width * 0.15,
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: Colors.green[50],
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Center(
                           child: Text(
                             "İleri",
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Colors.green,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
