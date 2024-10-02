@@ -126,6 +126,20 @@ class _ShowImageState extends State<ShowImage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        // iconTheme: const IconThemeData(
+        //   color: Colors.black,
+        // ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          // splashColor:
+          //     Colors.green, // Tıklama sırasında görülen dalga efekti rengi
+          highlightColor:
+              Colors.green[50], // Tıklama sırasında açılacak dalga efekti rengi
+          // color: Colors.black,
+        ),
         title: Center(
             child: Text(
           widget.item.headerValue,
@@ -235,8 +249,8 @@ class _ShowImageState extends State<ShowImage> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: currentIndex == index
-                        ? Colors.black
-                        : Colors.grey.shade400,
+                        ? Colors.green
+                        : Colors.green[100],
                   ),
                 ),
               ),

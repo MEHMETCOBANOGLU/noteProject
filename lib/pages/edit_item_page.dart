@@ -202,8 +202,10 @@ class _EditItemPageState extends State<EditItemPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
+        shadowColor: Colors.green[10],
+        surfaceTintColor: Colors.green[400],
         title: Center(child: Text(widget.item.headerValue)),
         actions: [
           Padding(
@@ -227,6 +229,19 @@ class _EditItemPageState extends State<EditItemPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  // ElevatedButton(
+                  //   onPressed: _addItemField,
+                  //   style: ElevatedButton.styleFrom(
+                  //     backgroundColor: Colors.grey.shade100,
+                  //     shape: const RoundedRectangleBorder(
+                  //       borderRadius: BorderRadius.all(Radius.circular(2.0)),
+                  //     ),
+                  //   ),
+                  //   child: const Text(
+                  //     '+ item ekle',
+                  //     style: TextStyle(color: Colors.green),
+                  //   ),
+                  // ),
                   ElevatedButton(
                     onPressed: _saveNote,
                     style: ElevatedButton.styleFrom(
@@ -364,7 +379,7 @@ class _EditItemPageState extends State<EditItemPage> {
                   },
                 ),
               ),
-              const SizedBox(height: 10),
+              // const SizedBox(height: 10),
               // Add Item button outside of ReorderableListView
               GestureDetector(
                 onTap: _addItemField,

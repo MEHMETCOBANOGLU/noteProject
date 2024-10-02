@@ -25,6 +25,7 @@ class _AddItemPageState extends State<AddItemPage> {
   final ImagePicker _picker = ImagePicker();
   final List<String?> _imagePaths = [null];
   List<GlobalKey> _menuKeys = [];
+  bool _isTitleEmpty = false;
 
   final SQLiteDatasource _sqliteDatasource =
       SQLiteDatasource(); // SQLite veritabanı kullanımı
@@ -36,6 +37,10 @@ class _AddItemPageState extends State<AddItemPage> {
   }
 
   Future<void> _addNote() async {
+    setState(() {
+      _isTitleEmpty = _titleController.text.isEmpty;
+    });
+
     if (_titleController.text.isNotEmpty && _itemControllers.isNotEmpty) {
       List<String> items =
           _itemControllers.map((controller) => controller.text).toList();
@@ -198,8 +203,10 @@ class _AddItemPageState extends State<AddItemPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
+        shadowColor: Colors.green[10],
+        surfaceTintColor: Colors.green[400],
         title: Center(child: const Text('Yeni Tablo Ekle')),
         actions: [
           IconButton(
@@ -243,10 +250,11 @@ class _AddItemPageState extends State<AddItemPage> {
                 keyboardType: TextInputType.multiline,
                 minLines: 1,
                 maxLines: null,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Başlık',
-                  hintStyle: TextStyle(fontStyle: FontStyle.italic),
-                  icon: Icon(Icons.title),
+                  hintStyle: const TextStyle(fontStyle: FontStyle.italic),
+                  icon: const Icon(Icons.title),
+                  errorText: _isTitleEmpty ? 'Başlık boş bırakılamaz' : null,
                 ),
               ),
               const SizedBox(height: 10),

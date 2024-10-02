@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:motion_tab_bar/MotionTabBar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:proje1/data/database.dart';
 import 'package:proje1/model/items.dart';
@@ -19,16 +20,20 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin {
   final SQLiteDatasource _sqliteDatasource =
       SQLiteDatasource(); // SQLite kullanımı için veritabanını başlatıyoruz
   bool _allExpanded = true; // Tüm panellerin durumu
   List<Item> _data = []; // Veriyi yerel olarak saklamak için liste
   Map<String, bool> _localExpandedStates = {};
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this); // 3 sekme
+
     _loadData(); // Sayfa açıldığında veriyi SQLite'dan yüklüyoruz
   }
 
@@ -79,6 +84,12 @@ class _HomePageState extends State<HomePage> {
       // Tüm öğelerin durumu değiştiği için bayrağı tersine çevirin
       _allExpanded = !_allExpanded;
     });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   void _exportData() async {
@@ -249,6 +260,8 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        shadowColor: Colors.green[10],
+        surfaceTintColor: Colors.green[400],
         title: const Center(
             child: Text('DEV SECURE', style: TextStyle(fontSize: 25))),
       ),
@@ -275,7 +288,8 @@ class _HomePageState extends State<HomePage> {
                               TextSpan(
                                 text: 'Ekle',
                                 style: TextStyle(
-                                    color: Theme.of(context).primaryColor),
+                                  color: Colors.green,
+                                ),
                                 recognizer: TapGestureRecognizer()
                                   ..onTap =
                                       _navigateAndAddItem, // Ekle butonuna tıklayınca AddItemPage'e gidiyoruz
@@ -292,10 +306,29 @@ class _HomePageState extends State<HomePage> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                        onPressed: () => _toggleExpandCollapse(),
-                        child: Text(
-                            _allExpanded ? 'Tümünü Daralt' : 'Tümünü Genişlet'),
-                      ),
+                          style: ButtonStyle(
+                            foregroundColor: WidgetStateProperty.all<Color>(
+                                Colors.white), // Metin rengi
+                            overlayColor:
+                                WidgetStateProperty.resolveWith<Color?>(
+                              (Set<WidgetState> states) {
+                                if (states.contains(WidgetState.pressed)) {
+                                  return Colors.green.withOpacity(
+                                      0.1); // Butona basıldığında oluşacak renk
+                                }
+                                return null;
+                              },
+                            ),
+                            shadowColor: WidgetStateProperty.all<Color>(Colors
+                                .grey), // Gölge rengi (ElevatedButton'da daha belirgin)
+                            surfaceTintColor: WidgetStateProperty.all<Color>(Colors
+                                .blue), // Yüzey rengi (ElevatedButton ve Surface'de)
+                          ),
+                          onPressed: () => _toggleExpandCollapse(),
+                          child: Text(
+                            _allExpanded ? 'Tümünü Daralt' : 'Tümünü Genişlet',
+                            style: TextStyle(color: Colors.green),
+                          )),
                     ],
                   ),
               ],
@@ -310,26 +343,41 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-          BottomAppBar(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.import_export),
-                  onPressed: _importData,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.file_upload),
-                  onPressed: _exportData,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.more_vert),
-                  onPressed: _deleteAllData,
-                ),
-              ],
-            ),
-          ),
         ],
+      ),
+      bottomNavigationBar: MotionTabBar(
+        initialSelectedTab: "Sil",
+        labels: const ["İçeri Aktar", "Dışarı Aktar", "Sil"],
+        icons: const [Icons.import_export, Icons.file_upload, Icons.delete],
+        tabSize: 50,
+        tabBarHeight: 55,
+        tabIconColor: Colors.green[200],
+        tabIconSize: 28.0,
+        tabIconSelectedSize: 26.0,
+        tabSelectedColor: Colors.green[300],
+        tabIconSelectedColor: Colors.white,
+        tabBarColor: Colors.green[50],
+        textStyle: const TextStyle(
+          fontSize: 12,
+          color: Colors.green,
+          fontWeight: FontWeight.w500,
+        ),
+        onTabItemSelected: (int index) {
+          setState(() {
+            _tabController.index = index;
+            switch (index) {
+              case 0:
+                _importData();
+                break;
+              case 1:
+                _exportData();
+                break;
+              case 2:
+                _deleteAllData();
+                break;
+            }
+          });
+        },
       ),
     );
   }
