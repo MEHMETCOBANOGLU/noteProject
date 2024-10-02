@@ -34,6 +34,19 @@ final List<Map<String, String>> aymData = [
     'description3':
         'İtem ekleme kısmında, bir iteme resim eklenmediğinde ana sayfada itemin resmi olmadığı için bu bir ikonla gösterilir. Bu ikona uzun süre basılı tutunca  bir pencere açılır. Bu peencerede ise Kullanıcı galerisinden bir resim seçip kopyalayabilir, fakat bu resim item\'e eklenmez.',
   },
+  {
+    'title': 'Toplu Metin Kopyalama',
+    'description':
+        'Kullanıcı, bir tablodaki itemlerin içinde bulunan metni kopyalamak istediğinde, itemlere ait olan başlığa (title) tıklayarak itemdeki her bir metin ayrı ayrı panoya kopyalanır. Ardından Kopyalama işleminin tamamlandığına dair bir bildirim gösterilir.',
+    'subtitle': 'Kullanım Kılavuzu',
+    'subtitle2': 'Metin Kopyalama Entegre Etme:',
+    'description2':
+        'Opsiyonel olarak tabloya item ekleme esnasında metin yazarken "||" kullanarak itemi "||" ile parçalara ayırabilirsiniz. Böylece diğer item alanlarını tek tek doldurmak zorunda kalmadan bir alanda tüm itemleri tanımlayabileceksiniz.',
+    'subtitle3': 'Kopyalama İşlemi:',
+    'description3':
+        'Başlığa (title) tıklayarak itemdeki her bir metin ayrı ayrı panoya kopyalanabilir. Tablodaki her bir metin, sırasıyla panoya kopyalanır. Kopyalama tamamlandıktan sonra bir bildirim gösterilir.',
+  },
+
   //  {
   //   'title': '',
   //   'description': '',
