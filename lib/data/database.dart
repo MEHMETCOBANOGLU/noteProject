@@ -25,7 +25,7 @@ class SQLiteDatasource {
 
       _database = await openDatabase(
         path,
-        version: 1,
+        version: 2, // Yeni tablo eklediğimiz için versiyonu artırıyoruz
         onCreate: (db, version) async {
           print("Creating tables...");
           await db.execute('''
@@ -39,7 +39,39 @@ class SQLiteDatasource {
             "order" INTEGER
           )
         ''');
-          print("Tables created successfully");
+
+          // Yeni `options` tablosunu oluştur
+          await db.execute('''
+          CREATE TABLE IF NOT EXISTS options (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            option_text TEXT NOT NULL
+          )
+        ''');
+
+          // Varsayılan seçenekleri ekleyin
+          await db.insert('options', {
+            'option_text':
+                'Bugün [Dil:ingilizce] dilbilgisi üzerine çalışıyorum.'
+          });
+          await db.insert('options', {
+            'option_text': '[İsim:Mehmet], bugün yeni bir spor rutini deniyor.'
+          });
+          await db.insert('options', {
+            'option_text':
+                '[İsim:Ahmet], [Dil:ingilizce] bir film izleyerek dinleme becerilerini geliştiriyor.'
+          });
+
+          print("Tables and default options created successfully");
+        },
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            await db.execute('''
+            CREATE TABLE IF NOT EXISTS options (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              option_text TEXT NOT NULL
+            )
+          ''');
+          }
         },
       );
     } catch (e) {
@@ -260,5 +292,27 @@ class SQLiteDatasource {
       print("Error adding or updating note: $e");
       return false;
     }
+  }
+
+  Future<void> createTables(Database _database) async {
+    await _database.execute('''
+      CREATE TABLE IF NOT EXISTS options (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        option_text TEXT NOT NULL
+      )
+    ''');
+  }
+
+  // Seçenek ekleme fonksiyonu
+  Future<void> addOption(String option) async {
+    await _database.insert('options', {'option_text': option});
+  }
+
+  // Tüm seçenekleri alma fonksiyonu
+  Future<List<String>> getOptions() async {
+    final List<Map<String, dynamic>> maps = await _database.query('options');
+    return List.generate(maps.length, (i) {
+      return maps[i]['option_text'] as String;
+    });
   }
 }
