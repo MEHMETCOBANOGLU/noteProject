@@ -22,22 +22,20 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage>
     with SingleTickerProviderStateMixin {
-  final SQLiteDatasource _sqliteDatasource =
-      SQLiteDatasource(); // SQLite kullanımı için veritabanını başlatıyoruz
-  bool _allExpanded = true; // Tüm panellerin durumu
-  List<Item> _data = []; // Veriyi yerel olarak saklamak için liste
+  final SQLiteDatasource _sqliteDatasource = SQLiteDatasource();
+  bool _allExpanded = true;
+  List<Item> _data = [];
   Map<String, bool> _localExpandedStates = {};
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this); // 3 sekme
-
+    _tabController = TabController(length: 3, vsync: this);
     _loadData(); // Sayfa açıldığında veriyi SQLite'dan yüklüyoruz
   }
 
-  // SQLite'dan veriyi yüklüyoruz
+  // SQLite'dan veriyi yüklüyoruz #dbb
   Future<void> _loadData() async {
     List<Item> items = await _sqliteDatasource.getNotes();
     setState(() {
@@ -49,30 +47,29 @@ class _HomePageState extends State<HomePage>
     });
   }
 
+  // Tüm öğeleri genişletiyoruz #expandall
   void _expandAll(List<Item> data) {
     setState(() {
       for (var item in data) {
         item.isExpanded = true;
         _sqliteDatasource.updateExpandedState(item.id, true);
-
-        // Yerel genişleme durumunu da açıyoruz
         _localExpandedStates[item.id] = true;
       }
     });
   }
 
+  // Tüm öğeleri daraltıyoruz #collapseall
   void _collapseAll(List<Item> data) {
     setState(() {
       for (var item in data) {
         item.isExpanded = false;
         _sqliteDatasource.updateExpandedState(item.id, false);
-
-        // Yerel genişleme durumunu da kapatıyoruz
         _localExpandedStates[item.id] = false;
       }
     });
   }
 
+  // Tüm öğeleri genişletme veya daraltma arasında geçiş yapıyoruz #toggleexpandcollapse
   void _toggleExpandCollapse() {
     setState(() {
       if (_allExpanded) {
@@ -81,7 +78,6 @@ class _HomePageState extends State<HomePage>
         _expandAll(_data); // Eğer daraltılmışsa, genişlet
       }
 
-      // Tüm öğelerin durumu değiştiği için bayrağı tersine çevirin
       _allExpanded = !_allExpanded;
     });
   }
@@ -92,39 +88,22 @@ class _HomePageState extends State<HomePage>
     super.dispose();
   }
 
+  // Cihazdaki verileri dışarı aktarır #exportdataa,dışarıaktarr
   void _exportData() async {
-    // SQLite'dan veri çekiyoruz
     List<Item> data = await _sqliteDatasource.getNotes();
-
-    // JSON stringine dönüştürüyoruz
     String jsonData = jsonEncode(data.map((e) => e.toMap()).toList());
-
-    // JSON verisini UTF-8 byte dizisine dönüştürün
     List<int> binaryData = utf8.encode(jsonData);
-
-    // Veriyi GZIP ile sıkıştırın
     List<int>? compressedData = GZipEncoder().encode(binaryData);
-
-    // Cihazın belgeler dizinini alın
     final directory = await getApplicationDocumentsDirectory();
-
-    // Dosya ismi için tarih formatını hazırlıyoruz
     String formattedDate =
         DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
-
-    // Binary bir dosya oluşturuyoruz
     final file = File('${directory.path}/data_export_$formattedDate.bin');
-
-    // Sıkıştırılmış binary veriyi dosyaya yazıyoruz
     await file.writeAsBytes(compressedData!);
-
-    // Dosyayı share_plus kullanarak paylaşıyoruz
     await Share.shareXFiles([XFile(file.path)],
         text: 'Here is your data export');
-
-    print(compressedData);
   }
 
+  // Cihazdaki verileri içeri aktarır #importdataa,içeriarıaktarr
   void _importData() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -140,11 +119,9 @@ class _HomePageState extends State<HomePage>
 
       for (var item in jsonData) {
         Item newItem = Item.fromMap(item);
-
         // Aynı başlıkta not var mı kontrol et
         bool noteExists =
             await _sqliteDatasource.noteExistsWithTitle(newItem.headerValue);
-
         if (noteExists) {
           // Eğer aynı başlıkta bir not varsa, kullanıcıdan onay alalım
           bool overwriteConfirmed =
@@ -155,16 +132,14 @@ class _HomePageState extends State<HomePage>
             continue;
           }
         }
-
         // Kullanıcıdan onay alındıysa veya aynı başlıkta not yoksa notu ekle/güncelle
         await _sqliteDatasource.addOrUpdateNote(newItem);
       }
-
-      // Veriyi yeniden yükleyerek UI'yi güncelle
       _loadData();
     }
   }
 
+  // overwrite dialogu #overwritedialogg,aynbaşlıkmevcutt
   Future<bool> _showOverwriteDialog(String title) async {
     return await showDialog<bool>(
           context: context,
@@ -173,17 +148,15 @@ class _HomePageState extends State<HomePage>
               title: const Text('Aynı Başlık Mevcut'),
               content: Text.rich(
                 TextSpan(
-                  text: '', // İlk kısım boş
+                  text: '',
                   children: <TextSpan>[
                     TextSpan(
-                      text: title, // Burada başlık yer alıyor
-                      style: const TextStyle(
-                          fontWeight:
-                              FontWeight.bold), // Sadece başlık kalın yapılıyor
+                      text: title,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const TextSpan(
                       text:
-                          ' başlıklı bir not zaten var. Üzerine yazmak ister misiniz?', // Diğer metin normal stil
+                          ' başlıklı bir not zaten var. Üzerine yazmak ister misiniz?',
                     ),
                   ],
                 ),
@@ -193,7 +166,7 @@ class _HomePageState extends State<HomePage>
                   child: const Text('İptal',
                       style: TextStyle(color: Colors.black)),
                   onPressed: () {
-                    Navigator.of(context).pop(false); // Kullanıcı iptal etti
+                    Navigator.of(context).pop(false);
                   },
                 ),
                 TextButton(
@@ -201,49 +174,64 @@ class _HomePageState extends State<HomePage>
                       style: TextStyle(
                           color: Colors.green, fontWeight: FontWeight.bold)),
                   onPressed: () {
-                    Navigator.of(context).pop(true); // Kullanıcı onayladı
+                    Navigator.of(context).pop(true);
                   },
                 ),
               ],
             );
           },
         ) ??
-        false; // Eğer kullanıcı dialogu kapatırsa false döner
+        false;
   }
 
+  // AddItemPage'e yönlendirme, dönüşte veri bekliyoruz. #navigateandadditemm
   void _navigateAndAddItem() async {
-    // AddItemPage'e giderken, dönüşte veriyi bekliyoruz.
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const AddItemPage()),
     );
 
-    // Eğer sayfadan başarılı bir şekilde veri eklenmiş olarak dönersek veriyi yeniden yüklüyoruz.
     if (result == true) {
-      _loadData(); // Veriyi yeniden yükleyerek güncelliyoruz.
+      _loadData();
     }
   }
 
+  // veritabanındaki tümverileri silme #deletealldataa,verilerisill,hepsinisill,sill
   void _deleteAllData() async {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Tüm Verileri Sil'),
+          title: const Text(
+            'Tüm Verileri Sil',
+            style: TextStyle(fontStyle: FontStyle.italic, color: Colors.green),
+          ),
           content:
               const Text('Tüm verileri silmek istediğinizden emin misiniz?'),
           actions: <Widget>[
-            TextButton(
-              child: const Text('İptal', style: TextStyle(color: Colors.black)),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            TextButton(
-              child: const Text(
-                'Sil',
-                style:
-                    TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-              ),
-              onPressed: () => Navigator.of(context).pop(true),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  child: const Text('İptal',
+                      style: TextStyle(color: Colors.black)),
+                  onPressed: () => Navigator.of(context).pop(false),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                  ),
+                  child: const Text(
+                    'Sil',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(true),
+                ),
+              ],
             ),
           ],
         );
@@ -252,7 +240,7 @@ class _HomePageState extends State<HomePage>
 
     if (confirm == true) {
       await _sqliteDatasource.deleteAllItems(); // SQLite'den tüm verileri sil
-      _loadData(); // UI'yı güncelle
+      _loadData();
     }
   }
 
@@ -262,15 +250,29 @@ class _HomePageState extends State<HomePage>
       appBar: AppBar(
         shadowColor: Colors.green[10],
         surfaceTintColor: Colors.green[400],
-        title: const Center(
-            child: Text('DEV SECURE', style: TextStyle(fontSize: 25))),
+        title: Center(
+          child: Container(
+            padding: EdgeInsets.all(7.0),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10.0),
+              // color: Colors.brown[200],
+            ),
+            child: const Text(
+              'DEV SECURE',
+              style: TextStyle(
+                  fontSize: 34,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Poppins'),
+            ),
+          ),
+        ),
       ),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
-              // Column kullanarak iki Row'u alt alta yerleştiriyoruz
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.start,
@@ -287,12 +289,11 @@ class _HomePageState extends State<HomePage>
                                       'Yeni bir tablo eklemek ister misiniz? '),
                               TextSpan(
                                 text: 'Ekle',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.green,
                                 ),
                                 recognizer: TapGestureRecognizer()
-                                  ..onTap =
-                                      _navigateAndAddItem, // Ekle butonuna tıklayınca AddItemPage'e gidiyoruz
+                                  ..onTap = _navigateAndAddItem,
                               ),
                             ],
                           ),
@@ -307,27 +308,26 @@ class _HomePageState extends State<HomePage>
                     children: [
                       TextButton(
                           style: ButtonStyle(
-                            foregroundColor: WidgetStateProperty.all<Color>(
-                                Colors.white), // Metin rengi
+                            foregroundColor:
+                                WidgetStateProperty.all<Color>(Colors.white),
                             overlayColor:
                                 WidgetStateProperty.resolveWith<Color?>(
                               (Set<WidgetState> states) {
                                 if (states.contains(WidgetState.pressed)) {
-                                  return Colors.green.withOpacity(
-                                      0.1); // Butona basıldığında oluşacak renk
+                                  return Colors.green.withOpacity(0.1);
                                 }
                                 return null;
                               },
                             ),
-                            shadowColor: WidgetStateProperty.all<Color>(Colors
-                                .grey), // Gölge rengi (ElevatedButton'da daha belirgin)
-                            surfaceTintColor: WidgetStateProperty.all<Color>(Colors
-                                .blue), // Yüzey rengi (ElevatedButton ve Surface'de)
+                            shadowColor:
+                                WidgetStateProperty.all<Color>(Colors.grey),
+                            surfaceTintColor:
+                                WidgetStateProperty.all<Color>(Colors.blue),
                           ),
                           onPressed: () => _toggleExpandCollapse(),
                           child: Text(
                             _allExpanded ? 'Tümünü Daralt' : 'Tümünü Genişlet',
-                            style: TextStyle(color: Colors.green),
+                            style: const TextStyle(color: Colors.green),
                           )),
                     ],
                   ),
@@ -382,26 +382,22 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  //listeyi oluşturmak için bir widget oluşturuyoruz
   Widget _buildPanel(List<Item> data) {
     return Column(
       children: data.map<Widget>((Item item) {
         return Padding(
-          padding: const EdgeInsets.all(2.0),
+          padding: const EdgeInsets.only(
+              right: 2.0, left: 2.0, bottom: 10.0, top: 2.0),
           child: ListItem(
             item: item,
-            isGlobalExpanded:
-                _allExpanded, // Tümünü Genişlet/Daralt durumu buradan geliyor
-            isLocalExpanded: _localExpandedStates[item.id] ??
-                false, // Yerel genişleme durumu
+            isGlobalExpanded: _allExpanded,
+            isLocalExpanded: _localExpandedStates[item.id] ?? false,
             onExpandedChanged: (bool isExpanded) {
-              // Genişletme durumunu SQLite'da güncelle
               _sqliteDatasource.updateExpandedState(item.id, isExpanded);
 
               setState(() {
-                // Tıklanan öğenin genişletme durumunu güncelle
                 _localExpandedStates[item.id] = isExpanded;
-
-                // Tümünü Genişlet/Daralt bayrağını güncelle
                 _allExpanded = _data
                     .every((item) => _localExpandedStates[item.id] ?? false);
               });

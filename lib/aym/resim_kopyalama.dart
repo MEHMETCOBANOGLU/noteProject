@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-
 import '../utility/image_copy.dart';
 
+// Resim kopyalama ve seçme aym #resimkopyalamavesecmee,aymm
 Future<void> selectAndCopyImageDialog(BuildContext context) async {
   final ImagePicker picker = ImagePicker();
   XFile? selectedImage;
@@ -14,7 +14,7 @@ Future<void> selectAndCopyImageDialog(BuildContext context) async {
       return StatefulBuilder(
         builder: (BuildContext context, StateSetter setState) {
           return AlertDialog(
-            title: Center(
+            title: const Center(
                 child: const Text(
               'Resim Kopyalama',
               style: TextStyle(
@@ -97,12 +97,14 @@ Future<void> selectAndCopyImageDialog(BuildContext context) async {
                             context, selectedImage!.path);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text(
-                                  'Resim panoya kopyalandı, itemde resim yok.')),
+                              duration: Duration(seconds: 1),
+                              content: Text('Resim panoya kopyalandı!')),
                         );
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Resim seçilmedi.')),
+                          const SnackBar(
+                              duration: Duration(seconds: 1),
+                              content: Text('Resim seçilmedi.')),
                         );
                       }
                       Navigator.of(context).pop();

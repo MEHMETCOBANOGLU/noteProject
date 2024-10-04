@@ -1,3 +1,4 @@
+//itemler için bir model oluşturuldu
 class Item {
   Item({
     required this.id,
@@ -40,24 +41,3 @@ class Item {
     );
   }
 }
-
-
-
-// class Item {
-//   Item({
-//     required this.id,
-//     required this.expandedValue,
-//     required this.headerValue,
-//     this.isExpanded = false,
-//     this.subtitle,
-//     this.imageUrls,
-//   });
-
-//   String id;
-//   List<String> expandedValue;
-//   List<String>? imageUrls;
-//   String headerValue;
-//   String? subtitle;
-//   bool isExpanded;
-// }
-// /////////////////

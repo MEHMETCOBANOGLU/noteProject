@@ -24,27 +24,24 @@ class _AddItemPageState extends State<AddItemPage> {
     TextEditingController()
   ];
   final TextEditingController _newOptionController = TextEditingController();
+  final SQLiteDatasource _sqliteDatasource = SQLiteDatasource();
 
   final ImagePicker _picker = ImagePicker();
   final List<String?> _imagePaths = [null];
+  bool _isAddingNewOption = false;
   List<GlobalKey> _menuKeys = [];
   bool _isTitleEmpty = false;
   List<String> options = [];
   String? selectedOption;
-  bool _isAddingNewOption = false;
-
-  final SQLiteDatasource _sqliteDatasource =
-      SQLiteDatasource(); // SQLite veritabanı kullanımı
 
   @override
   void initState() {
     super.initState();
     _menuKeys = List.generate(_itemControllers.length, (index) => GlobalKey());
-
-    // selectedOption = options.first;
     _loadOptionsFromDatabase();
   }
 
+  // seçenekler veritabanından yüklenir
   Future<void> _loadOptionsFromDatabase() async {
     List<String> dbOptions = await _sqliteDatasource.getOptions();
     setState(() {
@@ -53,7 +50,8 @@ class _AddItemPageState extends State<AddItemPage> {
     });
   }
 
-  Future<void> _addNote() async {
+  //yeni tablo ekler #yenitabloeklee
+  Future<void> _addNewTable() async {
     setState(() {
       _isTitleEmpty = _titleController.text.isEmpty;
     });
@@ -97,6 +95,7 @@ class _AddItemPageState extends State<AddItemPage> {
     }
   }
 
+  // overwrite dialogu #overwritedialogg,aynbaşlıkmevcutt
   Future<bool> _showOverwriteDialog() async {
     return await showDialog<bool>(
           context: context,
@@ -107,7 +106,7 @@ class _AddItemPageState extends State<AddItemPage> {
                   'Bu başlıkta zaten bir not mevcut. Üzerine yazmak ister misiniz?'),
               actions: <Widget>[
                 TextButton(
-                  child: Text(
+                  child: const Text(
                     'İptal',
                     style: TextStyle(color: Colors.black),
                   ),
@@ -130,6 +129,7 @@ class _AddItemPageState extends State<AddItemPage> {
         false;
   }
 
+  //itemler için resim seçme #resimseçmee,itemresimm
   Future<void> _pickImage(int index) async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
@@ -145,6 +145,7 @@ class _AddItemPageState extends State<AddItemPage> {
     }
   }
 
+//listeye item ekleme #listeyeitemekleme
   void _addItemField() {
     setState(() {
       _itemControllers.add(TextEditingController());
@@ -153,6 +154,7 @@ class _AddItemPageState extends State<AddItemPage> {
     });
   }
 
+  //listeden item silme #listedenitemsilme
   void _removeItemField(int index) {
     setState(() {
       if (_itemControllers.length > 1) {
@@ -172,6 +174,7 @@ class _AddItemPageState extends State<AddItemPage> {
     super.dispose();
   }
 
+  //3 nokta ikonuna tıklandıgında açılan menu #3noktaikonmenüü,3noktaikonuu
   void _showCustomMenu(BuildContext context, int index, GlobalKey key) {
     final RenderBox renderBox =
         key.currentContext!.findRenderObject() as RenderBox;
@@ -227,9 +230,8 @@ class _AddItemPageState extends State<AddItemPage> {
                   _newOptionController,
                   _isAddingNewOption,
                   setState,
-                  _addNewOption, // Seçenek ekleme
-                  _removeOption // Seçenek silme
-                  );
+                  _addNewOption,
+                  _removeOption);
             },
           ),
         ),
@@ -237,23 +239,23 @@ class _AddItemPageState extends State<AddItemPage> {
     );
   }
 
+  //seçenekler listboxundan seçenek silme
   void _removeOption(int index) {
     setState(() {
-      options.removeAt(index); // İlgili indeksteki elemanı sil
+      options.removeAt(index);
     });
   }
 
+  //seçenekler listboxuna yeni seçenek ekleme
   void _addNewOption(String value) async {
     if (value.isNotEmpty && !options.contains(value)) {
       setState(() {
         options.add(value);
         _newOptionController.clear();
-        _isAddingNewOption = false; // Ekleme işlemi bitince gizle
+        _isAddingNewOption = false;
       });
 
-      // Yeni seçeneği veritabanına ekle
-      print("Yeni seçenek ekleniyor: $value"); // Loglama ekleyin
-      await _sqliteDatasource.addOption(value); // Veritabanı ekleme fonksiyonu
+      await _sqliteDatasource.addOption(value);
     }
   }
 
@@ -264,10 +266,10 @@ class _AddItemPageState extends State<AddItemPage> {
       appBar: AppBar(
         shadowColor: Colors.green[10],
         surfaceTintColor: Colors.green[400],
-        title: Center(child: const Text('Yeni Tablo Ekle')),
+        title: const Center(child: Text('Yeni Tablo Ekle')),
         actions: [
           IconButton(
-            icon: Icon(Icons.info_outline),
+            icon: const Icon(Icons.info_outline), //info ikonu
             onPressed: () {
               Navigator.push(
                 context,
@@ -287,7 +289,7 @@ class _AddItemPageState extends State<AddItemPage> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   ElevatedButton(
-                    onPressed: _addNote,
+                    onPressed: _addNewTable,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey.shade100,
                       shape: const RoundedRectangleBorder(
@@ -363,7 +365,9 @@ class _AddItemPageState extends State<AddItemPage> {
                                             ),
                                           ),
                                         )
-                                      : Icon(Icons.image,
+                                      : Icon(
+                                          Icons
+                                              .image, //resim ikonu #resimikonuu
                                           size: 50,
                                           color: Colors.grey.shade400),
                                   suffixIcon: SizedBox(
@@ -377,8 +381,8 @@ class _AddItemPageState extends State<AddItemPage> {
                                             padding: EdgeInsets.zero,
                                             constraints: const BoxConstraints(),
                                             key: _menuKeys[index],
-                                            icon: const Icon(
-                                                Icons.more_vert_sharp),
+                                            icon: const Icon(Icons
+                                                .more_vert_sharp), //3 nokta ikonu #3noktaikonuu
                                             onPressed: () => _showCustomMenu(
                                               context,
                                               index,
@@ -392,7 +396,8 @@ class _AddItemPageState extends State<AddItemPage> {
                                             padding: EdgeInsets.zero,
                                             constraints: const BoxConstraints(),
                                             icon: const Icon(
-                                                Icons.remove_circle_outline,
+                                                Icons
+                                                    .remove_circle_outline, //item silme ikonu
                                                 color: Colors.red),
                                             onPressed: () =>
                                                 _removeItemField(index),

@@ -18,19 +18,18 @@ class EditItemPage extends StatefulWidget {
 }
 
 class _EditItemPageState extends State<EditItemPage> {
-  late TextEditingController _titleController;
-  late TextEditingController _subtitleController;
-  late List<TextEditingController> _itemControllers;
-  final ImagePicker _picker = ImagePicker();
-  List<File?> _selectedImages = [];
-  List<String?> _existingImagePaths = []; // Dosya yollarını saklamak için liste
-  List<GlobalKey> _menuKeys = [];
   final TextEditingController _newOptionController = TextEditingController();
+  late List<TextEditingController> _itemControllers;
+  late TextEditingController _subtitleController;
+  late TextEditingController _titleController;
+  final ImagePicker _picker = ImagePicker();
+  List<String?> _existingImagePaths = [];
+  List<File?> _selectedImages = [];
+  List<GlobalKey> _menuKeys = [];
   List<String> options = [];
   String? selectedOption;
   bool _isAddingNewOption = false;
-  final SQLiteDatasource _sqliteDatasource =
-      SQLiteDatasource(); // SQLite veritabanı kullanımı
+  final SQLiteDatasource _sqliteDatasource = SQLiteDatasource();
 
   @override
   void initState() {
@@ -40,8 +39,7 @@ class _EditItemPageState extends State<EditItemPage> {
     _itemControllers = widget.item.expandedValue
         .map((item) => TextEditingController(text: item))
         .toList();
-    _existingImagePaths =
-        widget.item.imageUrls ?? []; // Resim yollarını saklıyoruz
+    _existingImagePaths = widget.item.imageUrls ?? [];
     _selectedImages = List<File?>.generate(
       _existingImagePaths.length,
       (index) => null,
@@ -53,6 +51,7 @@ class _EditItemPageState extends State<EditItemPage> {
     _loadOptionsFromDatabase();
   }
 
+  //Seçenekler listboxu için veritabanından verileri yükler
   Future<void> _loadOptionsFromDatabase() async {
     List<String> dbOptions = await _sqliteDatasource.getOptions();
     setState(() {
@@ -61,7 +60,8 @@ class _EditItemPageState extends State<EditItemPage> {
     });
   }
 
-  Future<void> _saveNote() async {
+  //Tablodaki düzenlenen verileri kaydeder
+  Future<void> _saveEditedTable() async {
     List<String> items =
         _itemControllers.map((controller) => controller.text).toList();
     List<String> imagePaths = [];
@@ -88,23 +88,24 @@ class _EditItemPageState extends State<EditItemPage> {
           "saved"); // Düzenleme başarılı olduğunda "saved" döndürüyoruz.
     } else {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Failed to update note')));
+          .showSnackBar(const SnackBar(content: Text('Tablo düzenlenemedi!')));
     }
   }
 
+  //Tablodaki itemler için resim seçer
   Future<void> _pickImage(int index) async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
       File file = File(image.path);
 
       setState(() {
-        _selectedImages[index] =
-            file; // Resim dosyasını seçip listeye ekliyoruz
-        _existingImagePaths[index] = file.path; // Dosya yolunu güncelliyoruz
+        _selectedImages[index] = file;
+        _existingImagePaths[index] = file.path;
       });
     }
   }
 
+  //listeye item ekleme #listeyeitemekleme
   void _addItemField() {
     setState(() {
       _itemControllers.add(TextEditingController());
@@ -114,17 +115,19 @@ class _EditItemPageState extends State<EditItemPage> {
     });
   }
 
+  //listeden item silme #listedenitemsilme
   void _removeItemField(int index) {
     if (index < _itemControllers.length) {
       setState(() {
         _itemControllers.removeAt(index);
         _selectedImages.removeAt(index);
         _existingImagePaths.removeAt(index);
-        _menuKeys.removeAt(index); // GlobalKey'i de siliyoruz
+        _menuKeys.removeAt(index);
       });
     }
   }
 
+  //3 nokta ikonuna tıklandıgında açılan menu #3noktaikonmenüü,3noktaikonuu
   void _showCustomMenu(BuildContext context, int index, GlobalKey key) {
     final RenderBox renderBox =
         key.currentContext!.findRenderObject() as RenderBox;
@@ -192,44 +195,61 @@ class _EditItemPageState extends State<EditItemPage> {
     );
   }
 
+  //seçenekler listboxundan seçenek silme
   void _removeOption(int index) {
     setState(() {
       options.removeAt(index); // İlgili indeksteki elemanı sil
     });
   }
 
+//seçenekler listboxuna yeni seçenek ekleme
   void _addNewOption(String value) async {
     if (value.isNotEmpty && !options.contains(value)) {
       setState(() {
         options.add(value);
         _newOptionController.clear();
-        _isAddingNewOption = false; // Ekleme işlemi bitince gizle
+        _isAddingNewOption = false;
       });
 
-      // Yeni seçeneği veritabanına ekle
-      print("Yeni seçenek ekleniyor: $value"); // Loglama ekleyin
-      await _sqliteDatasource.addOption(value); // Veritabanı ekleme fonksiyonu
+      await _sqliteDatasource.addOption(value);
     }
   }
 
+  // düzenleme sayfasında tabloyu silme
   void _deleteTable(BuildContext context) async {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Tablo silinsin mi?'),
+          title: const Text('Tablo silinsin mi?',
+              style:
+                  TextStyle(fontStyle: FontStyle.italic, color: Colors.green)),
           content: Text(
               '${widget.item.headerValue} tablosunu silmek istediğinizden emin misiniz?'),
           actions: <Widget>[
-            TextButton(
-              child: const Text('İptal', style: TextStyle(color: Colors.black)),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            TextButton(
-              child: const Text('Sil',
-                  style: TextStyle(
-                      color: Colors.red, fontWeight: FontWeight.bold)),
-              onPressed: () => Navigator.of(context).pop(true),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  child: const Text('İptal',
+                      style: TextStyle(color: Colors.black)),
+                  onPressed: () => Navigator.of(context).pop(false),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                  ),
+                  child: const Text(
+                    'Sil',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(true),
+                ),
+              ],
             ),
           ],
         );
@@ -238,8 +258,7 @@ class _EditItemPageState extends State<EditItemPage> {
 
     if (confirm == true) {
       await _sqliteDatasource.deleteItem(widget.item.id);
-      Navigator.pop(context,
-          "deleted"); // Silme işlemi başarılı olduğunda "deleted" döndürüyoruz.
+      Navigator.pop(context, "deleted");
     }
   }
 
@@ -265,7 +284,8 @@ class _EditItemPageState extends State<EditItemPage> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: IconButton(
-              icon: const Icon(Icons.delete_sweep, color: Colors.red, size: 30),
+              icon: const Icon(Icons.delete_sweep,
+                  color: Colors.red, size: 30), //çöpkutusuu,ikonn
               onPressed: () async {
                 _deleteTable(context);
               },
@@ -283,21 +303,8 @@ class _EditItemPageState extends State<EditItemPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  // ElevatedButton(
-                  //   onPressed: _addItemField,
-                  //   style: ElevatedButton.styleFrom(
-                  //     backgroundColor: Colors.grey.shade100,
-                  //     shape: const RoundedRectangleBorder(
-                  //       borderRadius: BorderRadius.all(Radius.circular(2.0)),
-                  //     ),
-                  //   ),
-                  //   child: const Text(
-                  //     '+ item ekle',
-                  //     style: TextStyle(color: Colors.green),
-                  //   ),
-                  // ),
                   ElevatedButton(
-                    onPressed: _saveNote,
+                    onPressed: _saveEditedTable,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey.shade100,
                       shape: const RoundedRectangleBorder(
@@ -343,7 +350,7 @@ class _EditItemPageState extends State<EditItemPage> {
               const SizedBox(height: 10),
               Expanded(
                 child: ReorderableListView.builder(
-                  itemCount: _itemControllers.length, // Only the list items
+                  itemCount: _itemControllers.length,
                   onReorder: (int oldIndex, int newIndex) {
                     setState(() {
                       if (newIndex > oldIndex) {
@@ -361,6 +368,7 @@ class _EditItemPageState extends State<EditItemPage> {
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       key: ValueKey(index),
+                      // #Reorderablee,dragg,dropp
                       leading: ReorderableDragStartListener(
                         index: index,
                         child: const Icon(
@@ -433,7 +441,6 @@ class _EditItemPageState extends State<EditItemPage> {
                   },
                 ),
               ),
-              // const SizedBox(height: 10),
               // Add Item button outside of ReorderableListView
               GestureDetector(
                 onTap: _addItemField,

@@ -28,13 +28,37 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetMaterialApp(
       theme: ThemeData(
-        appBarTheme: const AppBarTheme(color: AppColors.primaryColor),
-        primaryColor: AppColors.primaryColor,
+        appBarTheme: const AppBarTheme(color: AppColors.backgroundColor),
+        primaryColor: AppColors.backgroundColor,
         hintColor: AppColors.accentColor,
-        scaffoldBackgroundColor: AppColors.backgroundColor,
+        scaffoldBackgroundColor: AppColors.opaqueBackgroundColor,
         textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: AppColors.textColorPrimary),
-          bodyMedium: TextStyle(color: AppColors.textColorSecondary),
+            // bodyLarge: TextStyle(color: AppColors.textColorPrimary),
+            // bodyMedium: TextStyle(color: AppColors.textColorSecondary),
+            ),
+        colorScheme: ColorScheme.fromSwatch().copyWith(
+          primary: AppColors.accentColor,
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          enabledBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: Colors.black),
+          ),
+          focusedBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: AppColors.accentColor),
+          ),
+        ),
+        textSelectionTheme:
+            const TextSelectionThemeData(cursorColor: AppColors.accentColor),
+        snackBarTheme: const SnackBarThemeData(
+          backgroundColor: Colors.green, // Global arka plan rengi
+          behavior: SnackBarBehavior.floating, // Floating özelliği
+          elevation: 2, // Gölge olmadan
+          showCloseIcon: true, // Kapatma ikonunu göster
+          closeIconColor: Colors.white, // Kapatma ikonu rengi
+          contentTextStyle: TextStyle(
+            // İçerik yazı stili
+            color: Colors.white, // Yazı rengi
+          ),
         ),
       ),
       debugShowCheckedModeBanner: false,

@@ -60,6 +60,10 @@ class SQLiteDatasource {
             'option_text':
                 '[İsim:Ahmet], [Dil:ingilizce] bir film izleyerek dinleme becerilerini geliştiriyor.'
           });
+          await db.insert('options', {
+            'option_text':
+                'Görev Durumu: [Seçenekler:Başlamadı|Devam Ediyor|Tamamlandı]'
+          });
 
           print("Tables and default options created successfully");
         },

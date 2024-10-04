@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // Ana Renkler (Yeşil ve uyumlu renkler)
-  static const Color primaryColor =
-      Color.fromARGB(255, 232, 245, 233); // Ana yeşil renk
-  static const Color secondaryColor =
-      Color(0xFF8BC34A); // İkincil açık yeşil renk
-  static const Color accentColor = Color(0xFFFFC107); // Vurgu için sıcak sarı
+  static const Color backgroundColor =
+      Color.fromARGB(255, 232, 245, 233); // green[50]
+  static const Color secondaryColor = Colors.green;
+  static const Color accentColor = Colors.brown;
 
   // Arka Plan Renkleri
-  static const Color backgroundColor =
-      Color.fromARGB(255, 253, 255, 250); // Çok açık yeşil arka plan
+  static const Color opaqueBackgroundColor =
+      Color.fromARGB(255, 251, 252, 250); // Çok açık yeşil arka plan
+
   static const Color cardBackgroundColor =
       Color(0xFFFFFFFF); // Kart arka planı beyaz
   static const Color darkBackgroundColor =
@@ -28,5 +28,7 @@ class AppColors {
   static const Color successColor = Color(0xFF4CAF50); // Başarı yeşili
   static const Color errorColor = Color(0xFFD32F2F); // Hata için kırmızı
   static const Color warningColor = Color(0xFFFF9800); // Uyarı için turuncu
-  static const Color infoColor = Color(0xFF03A9F4); // Bilgi için açık mavi
+  static const Color infoColor = Color(0xFF03A9F4);
+
+  static var selectedRadioColor; // Bilgi için açık mavi
 }
