@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:proje1/data/aym_data.dart';
 import 'package:proje1/pages/add_item_page.dart';
 
+//AYM bilgilendirme sayfasi
+
 class AymGuidePage extends StatefulWidget {
   const AymGuidePage({super.key});
 
@@ -32,7 +34,8 @@ class _AymGuidePageState extends State<AymGuidePage> {
       child: Scaffold(
         backgroundColor: Colors.white,
         body: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding:
+              const EdgeInsets.only(left: 25, right: 25, top: 25, bottom: 8),
           child: Column(
             children: [
               Expanded(
@@ -46,80 +49,96 @@ class _AymGuidePageState extends State<AymGuidePage> {
                     log(pageNumber.toString());
                   },
                   itemBuilder: (context, index) {
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          aymData[index]['title']!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 24,
-                            color: Colors.green[300],
+                    return SingleChildScrollView(
+                      // Kaydırılabilir hale getiriyoruz
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            aymData[index]['title']!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 24,
+                              color: Colors.green[300],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          aymData[index]['description']!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 18,
+                          const SizedBox(height: 10),
+                          Text(
+                            aymData[index]['description']!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 18,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        if (aymData[index]['subtitle'] != null) ...[
-                          Center(
-                            child: Text(
-                              aymData[index]['subtitle']!,
+                          const SizedBox(height: 10),
+                          if (aymData[index]['subtitle'] != null) ...[
+                            Center(
+                              child: Text(
+                                aymData[index]['subtitle']!,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 22,
+                                  color: Colors.green[300],
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 20),
+                          if (aymData[index]['subtitle2'] != null) ...[
+                            Text(
+                              aymData[index]['subtitle2']!,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 22,
+                                fontSize: 20,
                                 color: Colors.green[300],
                               ),
                             ),
-                          ),
-                        ],
-                        const SizedBox(height: 20),
-                        if (aymData[index]['subtitle2'] != null) ...[
-                          Text(
-                            aymData[index]['subtitle2']!,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                              color: Colors.green[300],
+                            const SizedBox(height: 5),
+                          ],
+                          if (aymData[index]['description2'] != null) ...[
+                            Text(
+                              aymData[index]['description2']!,
+                              style: const TextStyle(
+                                fontSize: 18,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 5),
-                        ],
-                        if (aymData[index]['description2'] != null) ...[
-                          Text(
-                            aymData[index]['description2']!,
-                            style: const TextStyle(
-                              fontSize: 18,
+                            const SizedBox(height: 15),
+                          ],
+                          if (aymData[index]['subtitle3'] != null) ...[
+                            Text(
+                              aymData[index]['subtitle3']!,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                                color: Colors.green[300],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 15),
-                        ],
-                        if (aymData[index]['subtitle3'] != null) ...[
-                          Text(
-                            aymData[index]['subtitle3']!,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                              color: Colors.green[300],
+                            const SizedBox(height: 5),
+                          ],
+                          if (aymData[index]['description3'] != null) ...[
+                            Text(
+                              aymData[index]['description3']!,
+                              style: const TextStyle(
+                                fontSize: 18,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 5),
-                        ],
-                        if (aymData[index]['description3'] != null) ...[
-                          Text(
-                            aymData[index]['description3']!,
-                            style: const TextStyle(
-                              fontSize: 18,
+                          ],
+                          const SizedBox(height: 10),
+                          if (aymData[index]['sample'] != null) ...[
+                            Center(
+                              child: Text(
+                                textAlign: TextAlign.center,
+                                aymData[index]['sample']!,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey,
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
+                      ),
                     );
                   },
                 ),

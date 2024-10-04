@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// tablo ekleme ve düzenleme sayfasındaki 3 nokta ikonundaki seçeneker menusu
 void showListBoxDialog(
     BuildContext context,
     int index,
@@ -8,9 +9,8 @@ void showListBoxDialog(
     TextEditingController newOptionController,
     bool isAddingNewOption,
     Function setState,
-    Function(String) addNewOption, // Yeni seçenek ekleme fonksiyonu
-    Function(int) removeOption // Silme fonksiyonu
-    ) {
+    Function(String) addNewOption,
+    Function(int) removeOption) {
   final ScrollController _scrollController = ScrollController();
 
   showDialog(
@@ -69,8 +69,7 @@ void showListBoxDialog(
                           itemCount: options.length,
                           itemBuilder: (BuildContext context, int idx) {
                             return Dismissible(
-                              key: Key(options[
-                                  idx]), // Her eleman için benzersiz bir anahtar
+                              key: Key(options[idx]),
                               background: Container(
                                 color: Colors.red[50],
                                 alignment: Alignment.centerRight,

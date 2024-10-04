@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+// Android native kodu ile clipboard'a resmi kopyalama
 Future<void> copyImageToClipboard(
     BuildContext context, String imagePath) async {
   const platform = MethodChannel('clipboard_image');
@@ -9,24 +10,29 @@ Future<void> copyImageToClipboard(
   try {
     final file = File(imagePath);
     if (await file.exists()) {
-      // Android native kodu ile clipboard'a resmi kopyala
       final result = await platform
           .invokeMethod('copyImageToClipboard', {'path': imagePath});
-      print(result); // Başarı mesajı dönerse burada kontrol edilir
+      print(result);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Resim panoya kopyalandı!')),
+        const SnackBar(
+            duration: Duration(seconds: 1),
+            content: Text('Resim panoya kopyalandı!')),
       );
     } else {
       print('File does not exist');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Dosya mevcut değil!')),
+        const SnackBar(
+            duration: Duration(seconds: 1),
+            content: Text('Dosya mevcut değil!')),
       );
     }
   } catch (e) {
     print("Error copying image: $e");
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Resim kopyalanırken hata oluştu: $e')),
+      SnackBar(
+          duration: Duration(seconds: 1),
+          content: Text('Resim kopyalanırken hata oluştu: $e')),
     );
   }
 }

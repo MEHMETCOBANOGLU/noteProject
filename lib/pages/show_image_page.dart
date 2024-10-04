@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:proje1/model/items.dart';
 
+// Resimleri görüntüleme sayfası
+
 class ShowImage extends StatefulWidget {
-  final List<String> imagePaths; // Tüm resim yolları
+  final List<String> imagePaths;
   final Item item;
-  final int initialIndex; // Başlangıçta gösterilecek resmin indeksi
+  final int initialIndex;
 
   const ShowImage({
     super.key,
@@ -27,8 +29,7 @@ class _ShowImageState extends State<ShowImage> {
   @override
   void initState() {
     super.initState();
-    currentIndex =
-        widget.initialIndex; // Başlangıçta gösterilecek resim indeksi
+    currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: currentIndex);
   }
 
@@ -41,7 +42,9 @@ class _ShowImageState extends State<ShowImage> {
   Future<void> _copyText(String text) async {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Metin panoya kopyalandı!')),
+      const SnackBar(
+          duration: Duration(seconds: 1),
+          content: Text('Metin panoya kopyalandı!')),
     );
   }
 
@@ -52,16 +55,22 @@ class _ShowImageState extends State<ShowImage> {
         final result = await platform
             .invokeMethod('copyImageToClipboard', {'path': imagePath});
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Görsel panoya kopyalandı!')),
+          const SnackBar(
+              duration: Duration(seconds: 1),
+              content: Text('Görsel panoya kopyalandı!')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Dosya mevcut değil!')),
+          const SnackBar(
+              duration: Duration(seconds: 1),
+              content: Text('Dosya mevcut değil!')),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Resim kopyalanırken hata oluştu: $e')),
+        SnackBar(
+            duration: Duration(seconds: 1),
+            content: Text('Resim kopyalanırken hata oluştu: $e')),
       );
     }
   }
