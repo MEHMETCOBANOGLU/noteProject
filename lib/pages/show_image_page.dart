@@ -1,9 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:proje1/aym/isimDilVeSecenek_duzenleyici.dart';
 import 'package:proje1/model/items.dart';
-
-// Resimleri görüntüleme sayfası
 
 class ShowImage extends StatefulWidget {
   final List<String> imagePaths;
@@ -25,18 +24,27 @@ class _ShowImageState extends State<ShowImage> {
   late PageController _pageController;
   late int currentIndex;
   static const platform = MethodChannel('clipboard_image');
+  List<Image> loadedImages = [];
 
   @override
   void initState() {
     super.initState();
     currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: currentIndex);
+    _preloadImages(); // Resimleri önceden yükle
   }
 
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  // Resimleri belleğe yükle
+  void _preloadImages() {
+    for (var imagePath in widget.imagePaths) {
+      loadedImages.add(Image.file(File(imagePath)));
+    }
   }
 
   Future<void> _copyText(String text) async {
@@ -63,6 +71,7 @@ class _ShowImageState extends State<ShowImage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               duration: Duration(seconds: 1),
+              backgroundColor: Colors.red,
               content: Text('Dosya mevcut değil!')),
         );
       }
@@ -70,6 +79,7 @@ class _ShowImageState extends State<ShowImage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             duration: Duration(seconds: 1),
+            backgroundColor: Colors.red,
             content: Text('Resim kopyalanırken hata oluştu: $e')),
       );
     }
@@ -82,10 +92,10 @@ class _ShowImageState extends State<ShowImage> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
       context: context,
       position: RelativeRect.fromLTRB(
-        offset.dx, // Left
-        offset.dy, // Top
-        offset.dx, // Right
-        offset.dy, // Bottom
+        offset.dx,
+        offset.dy,
+        offset.dx,
+        offset.dy,
       ),
       items: [
         PopupMenuItem(
@@ -111,10 +121,10 @@ class _ShowImageState extends State<ShowImage> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
       context: context,
       position: RelativeRect.fromLTRB(
-        offset.dx, // Left
-        offset.dy, // Top
-        offset.dx, // Right
-        offset.dy, // Bottom
+        offset.dx,
+        offset.dy,
+        offset.dx,
+        offset.dy,
       ),
       items: [
         PopupMenuItem(
@@ -135,28 +145,48 @@ class _ShowImageState extends State<ShowImage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // iconTheme: const IconThemeData(
-        //   color: Colors.black,
-        // ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
             Navigator.of(context).pop();
           },
-          // splashColor:
-          //     Colors.green, // Tıklama sırasında görülen dalga efekti rengi
-          highlightColor:
-              Colors.green[50], // Tıklama sırasında açılacak dalga efekti rengi
-          // color: Colors.black,
+          highlightColor: Colors.green[50],
         ),
         title: Center(
-            child: Text(
-          widget.item.headerValue,
-          style: const TextStyle(
-              fontSize: 25,
-              fontWeight: FontWeight.bold,
-              fontStyle: FontStyle.italic),
-        )),
+          child: Text(
+            widget.item.headerValue,
+            style: const TextStyle(
+                fontSize: 25,
+                fontWeight: FontWeight.bold,
+                fontStyle: FontStyle.italic),
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: EdgeInsets.all(8.0),
+            child: IconButton(
+              icon: const Icon(Icons.copy),
+
+              //İsim, dil, seçenekler ve resimgibi bilgileri düzenleme sayfasına gonderme #aymm,isimaymm,seçenekaymm,dilaymm
+              onPressed: () {
+                String text = widget.item.expandedValue[currentIndex];
+                int idx = currentIndex;
+                print(text);
+                print(idx);
+
+                handleTapOnText(
+                  context,
+                  text,
+                  idx,
+                  widget.item,
+                  () {
+                    setState(() {});
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -170,44 +200,38 @@ class _ShowImageState extends State<ShowImage> {
                 });
               },
               itemBuilder: (context, index) {
-                String imagePath = widget.imagePaths[index];
                 String? itemText = widget.item.expandedValue.length > index
                     ? widget.item.expandedValue[index]
                     : null;
 
                 return ListView(
                   children: [
-                    // Resim Gösterimi
-                    imagePath.isNotEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(15),
-                              child: Container(
-                                decoration: const BoxDecoration(
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 10,
-                                      offset: Offset(0, 5),
-                                    ),
-                                  ],
-                                ),
-                                child: GestureDetector(
-                                  onLongPressStart: (details) => _showImageMenu(
-                                    context,
-                                    index,
-                                    details.globalPosition,
-                                  ),
-                                  child: Image.file(
-                                    File(imagePath),
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
+                    // Yüklenmiş resmi göster
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(15),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 10,
+                                offset: Offset(0, 5),
                               ),
+                            ],
+                          ),
+                          child: GestureDetector(
+                            onLongPressStart: (details) => _showImageMenu(
+                              context,
+                              index,
+                              details.globalPosition,
                             ),
-                          )
-                        : Center(child: const Icon(Icons.image, size: 400)),
+                            child: loadedImages[index],
+                          ),
+                        ),
+                      ),
+                    ),
 
                     // Resme ait metin
                     GestureDetector(
@@ -243,7 +267,6 @@ class _ShowImageState extends State<ShowImage> {
               },
             ),
           ),
-
           // Noktalar ve ok işaretleri bölümü, en alta alındı
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),

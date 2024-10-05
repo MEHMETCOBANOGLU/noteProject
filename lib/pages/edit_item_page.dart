@@ -1,9 +1,13 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:json2yaml/json2yaml.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:proje1/model/items.dart';
 import 'package:proje1/utility/list_box.dart';
+import 'package:yaml/yaml.dart';
 
 import '../data/database.dart';
 import 'package:image/image.dart' as img; // For image manipulation
@@ -92,39 +96,184 @@ class _EditItemPageState extends State<EditItemPage> {
     }
   }
 
-  //Tablodaki itemler için resim seçer
+// Resimleri kalıcı olarak kaydetme fonksiyonu
+  Future<String> _saveImagePermanently(File image) async {
+    final directory = await getApplicationDocumentsDirectory(); // Kalıcı dizin
+    final fileName = image.path.split('/').last; // Resim adını alıyoruz
+    final newPath = '${directory.path}/$fileName'; // Kalıcı dosya yolu
+
+    final savedImage =
+        await image.copy(newPath); // Resmi yeni yola kopyalıyoruz
+    return savedImage.path; // Kalıcı dosya yolunu döndürüyoruz
+  }
+
+  //itemler için resim seçme #resimseçmee,itemresimm
+
   Future<void> _pickImage(int index) async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
       File file = File(image.path);
+      String savedImagePath =
+          await _saveImagePermanently(file); // Resmi kalıcı kaydediyoruz
 
       setState(() {
-        _selectedImages[index] = file;
-        _existingImagePaths[index] = file.path;
+        _selectedImages[index] =
+            File(savedImagePath); // Kalıcı dosya yolunu kaydediyoruz
+        _existingImagePaths[index] =
+            savedImagePath; // Veritabanına kalıcı dosya yolunu ekleyin
       });
     }
   }
 
-  //listeye item ekleme #listeyeitemekleme
+  bool isBase64(String? string) {
+    if (string == null || string.isEmpty) return false;
+    try {
+      base64Decode(string);
+      return true; // Eğer decode edebiliyorsak, geçerli bir Base64 verisidir
+    } catch (e) {
+      return false; // Base64 decode başarısız olursa, geçersizdir
+    }
+  }
+
+// Resmi Base64 formatına çeviren fonksiyon
+  Future<String?> _convertImageToBase64(String? imagePath) async {
+    if (imagePath == null) return null;
+    File imageFile = File(imagePath);
+    if (await imageFile.exists()) {
+      List<int> imageBytes = await imageFile.readAsBytes();
+      return base64Encode(imageBytes);
+    }
+    return null;
+  }
+
+  Future<void> _copyAllToClipboard() async {
+    var items = await Future.wait(_itemControllers.map((controller) async {
+      int index = _itemControllers.indexOf(controller);
+      String? base64Image;
+      try {
+        base64Image = await _convertImageToBase64(_existingImagePaths[index]);
+      } catch (e) {
+        print('Base64 dönüştürme hatası: $e');
+        base64Image = null;
+      }
+      return {
+        'text': controller.text,
+        'image': base64Image,
+      };
+    }).toList());
+
+    var dataMap = {
+      'title': _titleController.text,
+      'subtitle': _subtitleController.text,
+      'items': items,
+    };
+
+    String yamlData = json2yaml(dataMap);
+    Clipboard.setData(ClipboardData(text: yamlData));
+    print("YAML kopyalandı: $yamlData");
+  }
+
+// Base64'ten resmi geçici bir dosya olarak kaydeden fonksiyon
+  // Base64'ten resmi geçici bir dosya olarak kaydeden fonksiyon
+
+// Base64'ten resmi geçici bir dosya olarak kaydeden fonksiyon
+  Future<String> _convertBase64ToImage(String base64String, int index) async {
+    Uint8List imageBytes = base64Decode(base64String); // Base64 çözme işlemi
+    Directory tempDir = await getTemporaryDirectory();
+    String filePath = '${tempDir.path}/image_$index.png';
+
+    // Dosyayı yazıyoruz
+    File file = File(filePath);
+    await file.writeAsBytes(imageBytes);
+    return filePath; // Geçici dosya yolunu geri döndürüyoruz
+  }
+
+  Future<void> _pasteAllFromClipboard() async {
+    ClipboardData? data = await Clipboard.getData('text/plain');
+    if (data != null) {
+      try {
+        var yamlMap = loadYaml(data.text!);
+
+        String title = yamlMap['title'];
+        String subtitle = yamlMap['subtitle'];
+        List items = yamlMap['items'];
+
+        List<String?> imagePaths = [];
+        for (int i = 0; i < items.length; i++) {
+          var item = items[i];
+          if (item['image'] != null && isBase64(item['image'])) {
+            try {
+              String filePath = await _convertBase64ToImage(item['image'], i);
+              imagePaths.add(filePath);
+            } catch (e) {
+              print('Base64 çözme hatası: $e');
+              imagePaths.add(null);
+            }
+          } else {
+            imagePaths.add(item['image']);
+          }
+        }
+
+        setState(() {
+          _titleController.text = title;
+          _subtitleController.text = subtitle;
+          _itemControllers.clear();
+          _existingImagePaths.clear();
+          _menuKeys.clear();
+
+          for (int i = 0; i < items.length; i++) {
+            var item = items[i];
+            _itemControllers.add(TextEditingController(text: item['text']));
+            _existingImagePaths.add(imagePaths[i]);
+            _menuKeys.add(GlobalKey());
+          }
+        });
+      } catch (e) {
+        // Eğer YAML değilse Snackbar ile uyarı göster
+        _showInvalidClipboardSnackbar();
+      }
+    } else {
+      // Panoda veri yoksa Snackbar ile uyarı göster
+      _showInvalidClipboardSnackbar();
+    }
+  }
+
+// Panoda geçerli YAML yoksa Snackbar ile uyarı göster
+  void _showInvalidClipboardSnackbar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          duration: Duration(seconds: 1),
+          backgroundColor: Colors.red,
+          content: Text('Panoda geçerli bir YAML verisi bulunamadı!')),
+    );
+  }
+
+// listeye item ekleme #listeyeitemekleme
   void _addItemField() {
     setState(() {
       _itemControllers.add(TextEditingController());
-      _selectedImages.add(null); // Yeni resim placeholder'ı ekliyoruz
-      _existingImagePaths.add(''); // Yeni öğe için boş dosya yolu ekliyoruz
-      _menuKeys.add(GlobalKey()); // Yeni GlobalKey ekliyoruz
+      _existingImagePaths.add(null);
+
+      // Yeni item için GlobalKey ekle
+      if (_menuKeys.length < _itemControllers.length) {
+        _menuKeys.add(GlobalKey());
+      }
     });
   }
 
   //listeden item silme #listedenitemsilme
   void _removeItemField(int index) {
-    if (index < _itemControllers.length) {
-      setState(() {
+    setState(() {
+      if (_itemControllers.length > 1) {
         _itemControllers.removeAt(index);
-        _selectedImages.removeAt(index);
         _existingImagePaths.removeAt(index);
-        _menuKeys.removeAt(index);
-      });
-    }
+
+        // Silinen item için GlobalKey de kaldır
+        if (_menuKeys.length > index) {
+          _menuKeys.removeAt(index);
+        }
+      }
+    });
   }
 
   //3 nokta ikonuna tıklandıgında açılan menu #3noktaikonmenüü,3noktaikonuu
@@ -301,19 +450,69 @@ class _EditItemPageState extends State<EditItemPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  ElevatedButton(
-                    onPressed: _saveEditedTable,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey.shade100,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(2.0)),
+                  Flexible(
+                    child: ElevatedButton(
+                      onPressed: _copyAllToClipboard,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey.shade100,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4.0), // Smaller padding
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(2.0)),
+                        ),
+                      ),
+                      child: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Tümünü Kopyala',
+                          style: TextStyle(color: Colors.green),
+                        ),
                       ),
                     ),
-                    child: const Text(
-                      'Düzenlemeleri Kaydet',
-                      style: TextStyle(color: Colors.green),
+                  ),
+                  // const SizedBox(width: 2),
+                  Flexible(
+                    child: ElevatedButton(
+                      onPressed: _pasteAllFromClipboard,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey.shade100,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4.0), // Smaller padding
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(2.0)),
+                        ),
+                      ),
+                      child: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Tümünü Yapıştır',
+                          style: TextStyle(color: Colors.green),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 30),
+                  Flexible(
+                    child: ElevatedButton(
+                      onPressed: _saveEditedTable,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey.shade100,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4.0), // Smaller padding
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(2.0)),
+                        ),
+                      ),
+                      child: const FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Kaydet',
+                          style: TextStyle(
+                              color: Colors.green, fontWeight: FontWeight.bold),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -456,7 +655,7 @@ class _EditItemPageState extends State<EditItemPage> {
                     children: [
                       Icon(Icons.add, color: Colors.green),
                       SizedBox(width: 8),
-                      Text("Add Item", style: TextStyle(color: Colors.green)),
+                      Text("İtem Ekle", style: TextStyle(color: Colors.green)),
                     ],
                   ),
                 ),

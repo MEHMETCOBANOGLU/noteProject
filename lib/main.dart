@@ -50,13 +50,12 @@ class MyApp extends StatelessWidget {
         textSelectionTheme:
             const TextSelectionThemeData(cursorColor: AppColors.accentColor),
         snackBarTheme: const SnackBarThemeData(
-          backgroundColor: Colors.green, // Global arka plan rengi
-          behavior: SnackBarBehavior.floating, // Floating özelliği
-          elevation: 2, // Gölge olmadan
-          showCloseIcon: true, // Kapatma ikonunu göster
-          closeIconColor: Colors.white, // Kapatma ikonu rengi
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          elevation: 2,
+          showCloseIcon: true,
+          closeIconColor: Colors.white,
           contentTextStyle: TextStyle(
-            // İçerik yazı stili
             color: Colors.white, // Yazı rengi
           ),
         ),
