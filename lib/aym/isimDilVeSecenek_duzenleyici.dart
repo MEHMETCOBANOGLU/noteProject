@@ -1,100 +1,71 @@
 /////
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:proje1/const/colors.dart';
 import 'package:proje1/data/database.dart';
 import 'package:proje1/model/items.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
-// handleTapOnText fonksiyonu
+import '../utility/image_copy.dart';
+
 Future<void> handleTapOnText(BuildContext context, String text, int index,
     Item item, Function() onTableEdited) async {
+  // Regex patterns
   final RegExp languagePattern = RegExp(r'\[Dil:(.*?)\]');
   final RegExp namePattern = RegExp(r'\[İsim:(.*?)\]');
   final RegExp optionsPattern = RegExp(r'\[Seçenekler:(.*?)\]');
 
+  // Capture matches
   final RegExpMatch? languageMatch = languagePattern.firstMatch(text);
   final RegExpMatch? nameMatch = namePattern.firstMatch(text);
   final RegExpMatch? optionsMatch = optionsPattern.firstMatch(text);
 
-  if (optionsMatch != null) {
-    // "[Seçenekler:]" için işlev
-    String optionsString = optionsMatch.group(1) ?? '';
-    List<String> options = optionsString.split('|');
-    String currentOption = options.isNotEmpty ? options[0] : '';
+  // Extract language, name, and options data
+  String currentDil = languageMatch?.group(1) ?? '';
+  String currentName = nameMatch?.group(1) ?? '';
+  String optionsString = optionsMatch?.group(1) ?? '';
+  List<String> options =
+      optionsString.isNotEmpty ? optionsString.split('|') : [];
+  String currentOption = options.isNotEmpty ? options[0] : '';
 
-    await showOptionsEditDialog(
-      context,
-      currentOption,
-      optionsString,
-      (selectedOption) async {
-        item.expandedValue[index] = text
-            .replaceFirst(currentOption,
-                'TEMP_PLACEHOLDER') // currentOption'ı geçici bir değerle değiştiriyoruz
-            .replaceFirst(selectedOption,
-                currentOption) // selectedOption'ı currentOption yerine koyuyoruz
-            .replaceFirst('TEMP_PLACEHOLDER',
-                selectedOption); // Geçici değeri (currentOption yerine koyduğumuz) selectedOption ile değiştiriyoruz
+  // Check if the item has an image (modify this logic as per your Item model)
+  bool hasImage =
+      item.imageUrls![index] != null && item.imageUrls![index].isNotEmpty;
 
-        // // Sadece currentOption güncellenecek, text değişmeyecek
-        // item.expandedValue[index] = text.replaceFirst(
-        //     currentOption, selectedOption); // Bu satırı değiştiriyoruz
-        currentOption = selectedOption; // currentOption güncellensin
-
-        // Veritabanını da aynı şekilde güncelleyebiliriz, ancak text değişmeyecek
-        await SQLiteDatasource().updateNote(
-          item.id,
-          item.headerValue,
-          item.subtitle ?? '',
-          item.expandedValue,
-          item.imageUrls ?? [],
-        );
-
-        onTableEdited();
-      },
-      item,
-      index,
-      options,
-    );
-  } else if (languageMatch != null || nameMatch != null) {
-    // Dil ve İsim işlevi eski haliyle devam ediyor
-    String currentDil = languageMatch?.group(1) ?? '';
-    String currentName = nameMatch?.group(1) ?? '';
-
-    await showNameLangEditDialog(
+  // Open the dialog only if one of the patterns exists
+  if (languageMatch != null || nameMatch != null || optionsMatch != null) {
+    await showAllTagsEditDialog(
       context,
       currentDil,
       currentName,
-      (updatedText) async {
-        // Display text güncelleniyor
-        item.expandedValue[index] = updatedText;
-
-        await SQLiteDatasource().updateNote(
-          item.id,
-          item.headerValue,
-          item.subtitle ?? '',
-          item.expandedValue,
-          item.imageUrls ?? [],
-        );
-
-        onTableEdited();
-      },
+      currentOption,
+      options,
       item,
       index,
+      hasImage, // Pass the image status to the dialog
     );
   }
 }
 
-Future<void> showOptionsEditDialog(
+Future<void> showAllTagsEditDialog(
   BuildContext context,
+  String currentDil,
+  String currentName,
   String currentSelection,
-  String optionsString,
-  Function(String) onUpdated,
+  List<String> options,
   Item item,
   int index,
-  List<String> options,
+  bool hasImage, // New parameter to check if the image exists
 ) async {
   String text = item.expandedValue[index];
+  TextEditingController dilController = TextEditingController(text: currentDil);
+  TextEditingController isimController =
+      TextEditingController(text: currentName);
   String selectedOption = currentSelection;
   final ScrollController _scrollController = ScrollController();
+  final ImagePicker picker = ImagePicker();
+  XFile? selectedImage;
 
   return showDialog(
     context: context,
@@ -103,57 +74,178 @@ Future<void> showOptionsEditDialog(
         builder: (context, setState) {
           return AlertDialog(
             title: const Center(
-                child: Text(
-              "Seçenek Düzenleme",
-              style:
-                  TextStyle(fontStyle: FontStyle.italic, color: Colors.green),
-            )),
+              child: Text(
+                "Etiket Düzenleme",
+                style:
+                    TextStyle(fontStyle: FontStyle.italic, color: Colors.green),
+              ),
+            ),
             content: SizedBox(
-              width: double.maxFinite, // Dialog genişliğini maksimize ediyoruz
+              width: double.maxFinite,
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    // Kaynak metin gösterimi
                     Text(
                       text,
                       style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87),
                     ),
                     const SizedBox(height: 20),
-                    const Text(
-                      "Bir Seçenek Seçin:",
-                      style: TextStyle(fontSize: 16, color: Colors.green),
-                    ),
-                    const SizedBox(height: 10),
-                    // Seçenekler listesi
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 200),
-                      child: Scrollbar(
-                        trackVisibility: true,
-                        thumbVisibility: true,
-                        controller: _scrollController,
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          itemCount: options.length,
-                          shrinkWrap: true,
-                          itemBuilder: (context, index) {
-                            return RadioListTile<String>(
-                              activeColor: Colors.green,
-                              fillColor: WidgetStateProperty.all(Colors.green),
-                              title: Text(options[index]),
-                              value: options[index],
-                              groupValue: selectedOption,
-                              onChanged: (String? newValue) {
-                                setState(() {
-                                  selectedOption = newValue!;
-                                });
-                              },
-                            );
-                          },
-                        ),
+                    if (currentDil.isNotEmpty)
+                      Column(
+                        children: [
+                          Text(
+                            "Dili Güncelle:",
+                            style: TextStyle(
+                                fontSize: 16, color: Colors.green[400]),
+                          ),
+                          TextField(
+                            // controller: dilController,
+                            decoration: InputDecoration(
+                              hintText: dilController.text,
+                              hintStyle: const TextStyle(color: Colors.black54),
+                            ),
+                            onChanged: (value) {
+                              setState(() {
+                                dilController.text = value;
+                              });
+                            },
+                          ),
+                        ],
                       ),
-                    ),
+                    const SizedBox(height: 10),
+                    if (currentName.isNotEmpty)
+                      Column(
+                        children: [
+                          Text(
+                            "İsmi Güncelle:",
+                            style: TextStyle(
+                                fontSize: 16, color: Colors.green[400]),
+                          ),
+                          TextField(
+                            // controller: isimController,
+                            decoration: InputDecoration(
+                                hintText: isimController.text,
+                                hintStyle: TextStyle(color: Colors.black54)),
+                            onChanged: (value) {
+                              setState(() {
+                                isimController.text = value;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 10),
+                    if (options.isNotEmpty)
+                      Column(
+                        children: [
+                          Text(
+                            "Seçeneği Güncelle:",
+                            style: TextStyle(
+                                fontSize: 16, color: Colors.green[400]),
+                          ),
+                          const SizedBox(height: 10),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 200),
+                            child: Scrollbar(
+                              trackVisibility: true,
+                              thumbVisibility: true,
+                              controller: _scrollController,
+                              child: ListView.builder(
+                                controller: _scrollController,
+                                itemCount: options.length,
+                                shrinkWrap: true,
+                                itemBuilder: (context, index) {
+                                  return RadioListTile<String>(
+                                    activeColor: Colors.green,
+                                    title: Text(options[index]),
+                                    value: options[index],
+                                    groupValue: selectedOption,
+                                    onChanged: (String? newValue) {
+                                      setState(() {
+                                        selectedOption = newValue!;
+                                      });
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 20),
+                    if (!hasImage) ...[
+                      Divider(thickness: 1, color: Colors.green[100]),
+                      Text(
+                        "Resimi Güncelle:",
+                        style:
+                            TextStyle(fontSize: 16, color: Colors.green[400]),
+                      ),
+                      const SizedBox(height: 10),
+                      // Image selection only if no image exists
+                      selectedImage == null
+                          ? Container(
+                              height: 150,
+                              width: 150,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                              ),
+                              child: Center(
+                                child: IconButton(
+                                  onPressed: () async {
+                                    final XFile? image = await picker.pickImage(
+                                        source: ImageSource.gallery);
+                                    if (image != null) {
+                                      setState(() {
+                                        selectedImage = image;
+                                      });
+                                    }
+                                  },
+                                  icon: const Icon(
+                                    size: 100,
+                                    Icons.file_download_outlined,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Container(
+                              height: 150,
+                              width: 150,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                              ),
+                              child: Image.file(
+                                File(selectedImage!.path),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                      const SizedBox(height: 10),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[50],
+                        ),
+                        onPressed: () async {
+                          final XFile? image = await picker.pickImage(
+                              source: ImageSource.gallery);
+                          if (image != null) {
+                            setState(() {
+                              selectedImage = image;
+                            });
+                          }
+                        },
+                        child: const Text('Resim Seç',
+                            style: TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ] else ...[
+                      // const Text('Resim zaten mevcut, düzenlenemez.',
+                      //     style: TextStyle(color: Colors.red)),
+                    ],
                   ],
                 ),
               ),
@@ -176,184 +268,54 @@ Future<void> showOptionsEditDialog(
                       backgroundColor: Colors.green[50],
                     ),
                     child: const Text(
-                      "Kaydet",
+                      "Kopyala",
                       style: TextStyle(
                           color: Colors.green, fontWeight: FontWeight.bold),
                     ),
                     onPressed: () {
-                      // Seçilen seçenek ile display text'i güncelle
-                      onUpdated(selectedOption);
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ],
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
-}
+                      // Güncellenen metni oluştur
+                      String updatedText = text;
 
-// Dialog fonksiyonu
-Future<void> showNameLangEditDialog(
-    BuildContext context,
-    String currentDil,
-    String currentName,
-    Function(String) onUpdated,
-    Item item,
-    int index) async {
-  String text = item.expandedValue[index];
-  TextEditingController dilController = TextEditingController(text: currentDil);
-  TextEditingController isimController =
-      TextEditingController(text: currentName);
-
-  return showDialog(
-    context: context,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          final RegExp languagePattern = RegExp(r'\[Dil:(.*?)\]');
-          final RegExp namePattern = RegExp(r'\[İsim:(.*?)\]');
-
-          final RegExpMatch? dilMatch = languagePattern.firstMatch(text);
-          final RegExpMatch? isimMatch = namePattern.firstMatch(text);
-
-          String beforeDil = '';
-          String afterDil = '';
-          String betweenDilAndIsim = '';
-          String afterIsim = '';
-
-          if (dilMatch != null) {
-            beforeDil = text.substring(0, dilMatch.start);
-            afterDil = text.substring(dilMatch.end);
-          }
-
-          if (isimMatch != null) {
-            if (dilMatch != null && isimMatch.start > dilMatch.end) {
-              betweenDilAndIsim =
-                  afterDil.substring(0, isimMatch.start - dilMatch.end);
-              afterIsim = afterDil.substring(isimMatch.end - dilMatch.end);
-            } else {
-              beforeDil = text.substring(0, isimMatch.start);
-              afterIsim = text.substring(isimMatch.end);
-            }
-          }
-
-          String updatedText = text;
-          if (dilMatch != null && isimMatch != null) {
-            // Hem dil hem isim varsa her ikisini de güncelliyoruz
-            updatedText = text
-                .replaceFirst(
-                    '[Dil:${dilMatch.group(1)}]', '[Dil:${dilController.text}]')
-                .replaceFirst('[İsim:${isimMatch.group(1)}]',
-                    '[İsim:${isimController.text}]');
-          } else if (dilMatch != null) {
-            // Sadece dil varsa
-            updatedText = "$beforeDil[Dil:${dilController.text}]$afterDil";
-          } else if (isimMatch != null) {
-            // Sadece isim varsa
-            updatedText = "$beforeDil[İsim:${isimController.text}]$afterIsim";
-          }
-
-          return AlertDialog(
-            title: const Center(
-                child: Text(
-              "Değişken Düzenleme",
-              style:
-                  TextStyle(fontStyle: FontStyle.italic, color: Colors.green),
-            )),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(updatedText, style: TextStyle(fontSize: 16)),
-                const SizedBox(height: 10),
-                if (dilMatch != null)
-                  Column(
-                    children: [
-                      Text("Dili Güncelle:",
-                          style: TextStyle(
-                              fontSize: 16, color: Colors.green[400])),
-                      TextField(
-                        controller: dilController,
-                        decoration: const InputDecoration(
-                            hintText: "Yeni dili giriniz"),
-                        onChanged: (value) {
-                          setState(() {});
-                        },
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 10),
-                if (isimMatch != null)
-                  Column(
-                    children: [
-                      Text("İsim Güncelle:",
-                          style: TextStyle(
-                              fontSize: 16, color: Colors.green[300])),
-                      TextField(
-                        controller: isimController,
-                        decoration: const InputDecoration(
-                            hintText: "Yeni ismi giriniz"),
-                        onChanged: (value) {
-                          setState(() {});
-                        },
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-            actions: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    child: const Text("İptal",
-                        style: TextStyle(
-                          color: Colors.black,
-                        )),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[50],
-                    ),
-                    child: const Text(
-                      "Kaydet",
-                      style: TextStyle(
-                          color: Colors.green, fontWeight: FontWeight.bold),
-                    ),
-                    onPressed: () {
-                      // [Dil:] ve [İsim:] kısımlarını güncelledikten sonra yeni metni birleştiriyoruz
-                      String finalText = text;
-
-                      if (dilMatch != null && isimMatch != null) {
-                        // [Dil:] ve [İsim:] kısımlarını dilController.text ve isimController.text ile güncelliyoruz.
-                        finalText = text
-                            .replaceFirst('[Dil:${dilMatch.group(1)}]',
-                                '[Dil:${dilController.text}]')
-                            .replaceFirst('[İsim:${isimMatch.group(1)}]',
-                                '[İsim:${isimController.text}]');
-                      } else {
-                        // Sadece [Dil:] varsa
-                        if (dilMatch != null) {
-                          finalText =
-                              "$beforeDil[Dil:${dilController.text}]$afterDil";
-                        }
-
-                        // Sadece [İsim:] varsa
-                        if (isimMatch != null) {
-                          finalText =
-                              "$beforeDil[İsim:${isimController.text}]$afterIsim";
-                        }
+                      if (currentDil.isNotEmpty) {
+                        updatedText = updatedText.replaceFirst(
+                            RegExp(r'\[Dil:(.*?)\]'),
+                            '[Dil:${dilController.text}]');
                       }
 
-                      // Güncellenmiş metni geri döndürüyoruz
-                      onUpdated(finalText);
-                      Navigator.of(context).pop(); // Dialog'u kapatıyoruz
+                      if (currentName.isNotEmpty) {
+                        updatedText = updatedText.replaceFirst(
+                            RegExp(r'\[İsim:(.*?)\]'),
+                            '[İsim:${isimController.text}]');
+                      }
+
+                      if (options.isNotEmpty) {
+                        updatedText = updatedText.replaceFirst(
+                            RegExp(r'\[Seçenekler:(.*?)\]'),
+                            '[Seçenekler:${selectedOption}]');
+                      }
+
+                      // Etiketleri temizleyip metni kopyala
+                      String displayText = getDisplayText(updatedText);
+                      Clipboard.setData(ClipboardData(text: displayText));
+
+                      if (selectedImage != null) {
+                        copyImageToClipboard(context, selectedImage!.path);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              duration: Duration(seconds: 1),
+                              content:
+                                  Text('Metin ve resim panoya kopyalandı!')),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              duration: Duration(seconds: 1),
+                              content: Text(
+                                  'Metin panoya kopyalandı! Resim seçilmedi.')),
+                        );
+                      }
+
+                      Navigator.of(context).pop();
                     },
                   ),
                 ],
@@ -372,36 +334,24 @@ String getDisplayText(String text) {
   final RegExp namePattern = RegExp(r'\[İsim:(.*?)\]');
   final RegExp optionsPattern = RegExp(r'\[Seçenekler:(.*?)\]');
 
-  final RegExpMatch? languageMatch = languagePattern.firstMatch(text);
-  final RegExpMatch? nameMatch = namePattern.firstMatch(text);
-  final RegExpMatch? optionsMatch = optionsPattern.firstMatch(text);
+  // Dil etiketini kaldır ve sadece içeriği bırak
+  text = text.replaceAllMapped(languagePattern, (match) {
+    return match.group(1) ?? '';
+  });
 
-  String displayText = text;
+  // İsim etiketini kaldır ve sadece içeriği bırak
+  text = text.replaceAllMapped(namePattern, (match) {
+    return match.group(1) ?? '';
+  });
 
-  // [Dil:] patterni için display text'i günceller
-  if (languageMatch != null) {
-    displayText = displayText.replaceAllMapped(languagePattern, (match) {
-      return match.group(1) ?? 'Dil';
-    });
-  }
-
-  // [İsim:] patterni için display text'i günceller
-  if (nameMatch != null) {
-    displayText = displayText.replaceAllMapped(namePattern, (match) {
-      return match.group(1) ?? 'İsim';
-    });
-  }
-
-  // [Seçenekler:] patterni için display text'i günceller (varsayılan ilk seçenek)
-  if (optionsMatch != null) {
-    String optionsString = optionsMatch.group(1) ?? '';
+  // Seçenekler etiketini kaldır ve sadece seçilen değeri bırak
+  text = text.replaceAllMapped(optionsPattern, (match) {
+    String optionsString = match.group(1) ?? '';
     List<String> options = optionsString.split('|');
-    String defaultOption = options.isNotEmpty ? options[0] : '';
-    displayText = displayText.replaceFirst(optionsPattern, defaultOption);
-    print(displayText);
-  }
+    return options.isNotEmpty ? options[0] : '';
+  });
 
-  return displayText;
+  return text;
 }
 
 // Display text function: Displays name and language info with color
@@ -492,5 +442,3 @@ Widget getColoredDisplayText(String text) {
     text: TextSpan(children: textSpans),
   );
 }
-
-//////

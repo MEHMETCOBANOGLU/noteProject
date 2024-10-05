@@ -23,6 +23,7 @@ Future<void> copyImageToClipboard(
       print('File does not exist');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
+            backgroundColor: Colors.red,
             duration: Duration(seconds: 1),
             content: Text('Dosya mevcut değil!')),
       );
@@ -31,6 +32,7 @@ Future<void> copyImageToClipboard(
     print("Error copying image: $e");
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+          backgroundColor: Colors.red,
           duration: Duration(seconds: 1),
           content: Text('Resim kopyalanırken hata oluştu: $e')),
     );

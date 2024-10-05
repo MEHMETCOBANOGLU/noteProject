@@ -203,11 +203,11 @@ class _ListItemState extends State<ListItem> {
                               ),
                             )
                           : GestureDetector(
-                              onLongPress: () {
-                                // Resim aym. resim seçip kopyalama #resimaymm,aymm
-                                selectAndCopyImageDialog(
-                                  context,
-                                );
+                              onTap: () {
+                                // // Resim aym. resim seçip kopyalama #resimaymm,aymm
+                                // selectAndCopyImageDialog(
+                                //     context, widget.item.expandedValue[idx]
+                                //     );
                               },
                               child: Icon(Icons.image,
                                   size: 50, color: Colors.grey.shade400),
@@ -216,7 +216,9 @@ class _ListItemState extends State<ListItem> {
                     visualDensity: VisualDensity.compact,
                     dense: true,
                     onTap: () {
-                      //İsim, dil, seçenekler gibi bilgileri düzenleme sayfasına gonderme #aymm,isimaymm,seçenekaymm,dilaymm
+                      //İsim, dil, seçenekler ve resimgibi bilgileri düzenleme sayfasına gonderme #aymm,isimaymm,seçenekaymm,dilaymm
+                      print(text);
+                      print(idx);
                       handleTapOnText(
                         context,
                         text,
