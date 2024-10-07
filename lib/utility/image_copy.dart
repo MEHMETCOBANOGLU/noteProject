@@ -9,6 +9,8 @@ Future<void> copyImageToClipboard(
 
   try {
     final file = File(imagePath);
+    print('Copying image at path: $imagePath');
+
     if (await file.exists()) {
       final result = await platform
           .invokeMethod('copyImageToClipboard', {'path': imagePath});
@@ -32,9 +34,10 @@ Future<void> copyImageToClipboard(
     print("Error copying image: $e");
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 1),
-          content: Text('Resim kopyalanırken hata oluştu: $e')),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 1),
+        content: Text('Resim kopyalanırken bir hata oluştu.'),
+      ),
     );
   }
 }

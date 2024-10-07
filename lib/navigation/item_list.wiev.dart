@@ -78,6 +78,8 @@ class _ListItemState extends State<ListItem> {
           content: Text('Tablo başarılı bir şekilde silindi!'),
         ),
       );
+    } else if (result == "pop") {
+      widget.onTableEdited();
     }
   }
 
@@ -114,7 +116,7 @@ class _ListItemState extends State<ListItem> {
                         ? null
                         : Text(widget.item.subtitle!),
                     visualDensity: VisualDensity.compact,
-                    onTap: () async {
+                    onLongPress: () async {
                       // tablodaki tüm itemleri panoya kopyalama #titlecopyy
                       List<String> texts =
                           widget.item.expandedValue.join('||').split('||');
@@ -130,6 +132,12 @@ class _ListItemState extends State<ListItem> {
                             content:
                                 Text('Tablonun itemleri panoya kopyalandı!')),
                       );
+                    },
+                    onTap: () async {
+                      setState(() {
+                        isLocalExpanded = !isExpanded;
+                        widget.onExpandedChanged(isLocalExpanded);
+                      });
                     },
                   ),
                 ),
