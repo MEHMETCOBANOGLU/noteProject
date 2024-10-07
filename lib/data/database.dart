@@ -177,7 +177,7 @@ class SQLiteDatasource {
   }
 
   // Not silme fonksiyonu
-  Future<bool> deleteItem(String id) async {
+  Future<bool> deleteTable(String id) async {
     try {
       await _database.delete(
         'notes',
@@ -229,6 +229,52 @@ class SQLiteDatasource {
       print("All items deleted successfully.");
     } catch (e) {
       print("Error deleting all items: $e");
+    }
+  }
+
+  // Belirli bir item'ı silme fonksiyonu
+  Future<bool> deleteItem(String noteId, int itemIndex) async {
+    try {
+      // Önce notu veritabanından çekiyoruz
+      List<Map<String, dynamic>> maps = await _database.query(
+        'notes',
+        where: 'id = ?',
+        whereArgs: [noteId],
+      );
+
+      if (maps.isNotEmpty) {
+        // Notu aldık, şimdi item'ları ayırıyoruz
+        String itemsString = maps.first['items'];
+        List<String> items = itemsString.split('||'); // '||' ile ayırıyoruz
+
+        // Eğer itemIndex geçerli bir index değilse silmiyoruz
+        if (itemIndex >= 0 && itemIndex < items.length) {
+          // Belirtilen item'ı listeden çıkarıyoruz
+          items.removeAt(itemIndex);
+
+          // Güncellenen item listesiyle notu güncelliyoruz
+          await _database.update(
+            'notes',
+            {
+              'items':
+                  items.join('||'), // Listeyi tekrar '||' ile birleştiriyoruz
+            },
+            where: 'id = ?',
+            whereArgs: [noteId],
+          );
+          print("Item deleted successfully from note");
+          return true;
+        } else {
+          print("Invalid item index");
+          return false;
+        }
+      } else {
+        print("Note not found");
+        return false;
+      }
+    } catch (e) {
+      print("Error deleting item: $e");
+      return false;
     }
   }
 

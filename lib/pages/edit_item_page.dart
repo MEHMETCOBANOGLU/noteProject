@@ -1,16 +1,15 @@
-import 'dart:convert';
-import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:proje1/utility/list_box.dart';
+import 'package:json2yaml/json2yaml.dart';
+import 'package:proje1/model/items.dart';
+import 'package:image/image.dart' as img;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:json2yaml/json2yaml.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:proje1/model/items.dart';
-import 'package:proje1/utility/list_box.dart';
 import 'package:yaml/yaml.dart';
-
 import '../data/database.dart';
-import 'package:image/image.dart' as img; // For image manipulation
+import 'dart:convert';
+import 'dart:io';
 
 class EditItemPage extends StatefulWidget {
   final Item item;
@@ -26,6 +25,8 @@ class _EditItemPageState extends State<EditItemPage> {
   late List<TextEditingController> _itemControllers;
   late TextEditingController _subtitleController;
   late TextEditingController _titleController;
+
+  late List<FocusNode> _focusNodes;
   final ImagePicker _picker = ImagePicker();
   List<String?> _existingImagePaths = [];
   List<File?> _selectedImages = [];
@@ -34,15 +35,20 @@ class _EditItemPageState extends State<EditItemPage> {
   String? selectedOption;
   bool _isAddingNewOption = false;
   final SQLiteDatasource _sqliteDatasource = SQLiteDatasource();
+  final ScrollController _scrollController =
+      ScrollController(); // ScrollController
 
   @override
   void initState() {
     super.initState();
+
     _titleController = TextEditingController(text: widget.item.headerValue);
     _subtitleController = TextEditingController(text: widget.item.subtitle);
     _itemControllers = widget.item.expandedValue
         .map((item) => TextEditingController(text: item))
         .toList();
+
+    // Ensure consistency in list length
     _existingImagePaths = widget.item.imageUrls ?? [];
     _selectedImages = List<File?>.generate(
       _existingImagePaths.length,
@@ -50,9 +56,26 @@ class _EditItemPageState extends State<EditItemPage> {
       growable: true,
     );
 
+    // Ensure _selectedImages and _existingImagePaths have the same length as _itemControllers
+    if (_itemControllers.length > _selectedImages.length) {
+      for (int i = _selectedImages.length; i < _itemControllers.length; i++) {
+        _selectedImages.add(null); // Add empty entries to match length
+      }
+    }
+    if (_itemControllers.length > _existingImagePaths.length) {
+      for (int i = _existingImagePaths.length;
+          i < _itemControllers.length;
+          i++) {
+        _existingImagePaths.add(""); // Add empty entries to match length
+      }
+    }
+
     _menuKeys = List.generate(_itemControllers.length, (index) => GlobalKey());
-    bool _isAddingNewOption = false;
+
     _loadOptionsFromDatabase();
+
+    _focusNodes =
+        List.generate(_itemControllers.length, (index) => FocusNode());
   }
 
   //Seçenekler listboxu için veritabanından verileri yükler
@@ -89,7 +112,7 @@ class _EditItemPageState extends State<EditItemPage> {
 
     if (success) {
       Navigator.pop(context,
-          "saved"); // Düzenleme başarılı olduğunda "saved" döndürüyoruz.
+          "deleted"); // Düzenleme başarılı olduğunda "saved" döndürüyoruz.
     } else {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Tablo düzenlenemedi!')));
@@ -98,13 +121,12 @@ class _EditItemPageState extends State<EditItemPage> {
 
 // Resimleri kalıcı olarak kaydetme fonksiyonu
   Future<String> _saveImagePermanently(File image) async {
-    final directory = await getApplicationDocumentsDirectory(); // Kalıcı dizin
-    final fileName = image.path.split('/').last; // Resim adını alıyoruz
-    final newPath = '${directory.path}/$fileName'; // Kalıcı dosya yolu
+    final directory = await getApplicationDocumentsDirectory();
+    final fileName = image.path.split('/').last;
+    final newPath = '${directory.path}/$fileName';
 
-    final savedImage =
-        await image.copy(newPath); // Resmi yeni yola kopyalıyoruz
-    return savedImage.path; // Kalıcı dosya yolunu döndürüyoruz
+    final savedImage = await image.copy(newPath);
+    return savedImage.path;
   }
 
   //itemler için resim seçme #resimseçmee,itemresimm
@@ -115,119 +137,110 @@ class _EditItemPageState extends State<EditItemPage> {
       File file = File(image.path);
       String savedImagePath =
           await _saveImagePermanently(file); // Resmi kalıcı kaydediyoruz
+      print("Resim kaydedildi: $savedImagePath");
 
       setState(() {
-        _selectedImages[index] =
-            File(savedImagePath); // Kalıcı dosya yolunu kaydediyoruz
-        _existingImagePaths[index] =
-            savedImagePath; // Veritabanına kalıcı dosya yolunu ekleyin
+        _selectedImages[index] = File(savedImagePath);
+        _existingImagePaths[index] = savedImagePath;
       });
     }
   }
 
-  bool isBase64(String? string) {
-    if (string == null || string.isEmpty) return false;
-    try {
-      base64Decode(string);
-      return true; // Eğer decode edebiliyorsak, geçerli bir Base64 verisidir
-    } catch (e) {
-      return false; // Base64 decode başarısız olursa, geçersizdir
-    }
-  }
-
-// Resmi Base64 formatına çeviren fonksiyon
-  Future<String?> _convertImageToBase64(String? imagePath) async {
-    if (imagePath == null) return null;
-    File imageFile = File(imagePath);
-    if (await imageFile.exists()) {
-      List<int> imageBytes = await imageFile.readAsBytes();
-      return base64Encode(imageBytes);
-    }
-    return null;
-  }
-
+  // Düzenleme sayfasındaki tümünü kopyala butonu #copyall,tümünükopyalaa
   Future<void> _copyAllToClipboard() async {
-    var items = await Future.wait(_itemControllers.map((controller) async {
-      int index = _itemControllers.indexOf(controller);
-      String? base64Image;
-      try {
-        base64Image = await _convertImageToBase64(_existingImagePaths[index]);
-      } catch (e) {
-        print('Base64 dönüştürme hatası: $e');
-        base64Image = null;
+    // _existingImagePaths listesinin uzunluğunu kontrol edip senkronize ediyoruz
+    if (_existingImagePaths.length < _itemControllers.length) {
+      for (int i = _existingImagePaths.length;
+          i < _itemControllers.length;
+          i++) {
+        _existingImagePaths
+            .add(""); // Eksik öğeleri boş string ile dolduruyoruz
       }
-      return {
+    }
+
+    var items = _itemControllers.asMap().entries.map((entry) {
+      int index = entry.key;
+      TextEditingController controller = entry.value;
+
+      Map<String, dynamic> itemData = {
         'text': controller.text,
-        'image': base64Image,
       };
-    }).toList());
+
+      // Eğer imagePath boş değilse, image alanını ekliyoruz, yoksa boş string ekliyoruz
+      itemData['image'] = _existingImagePaths[index] ?? '';
+
+      return itemData;
+    }).toList();
 
     var dataMap = {
       'title': _titleController.text,
-      'subtitle': _subtitleController.text,
+      'subtitle': _subtitleController.text.isNotEmpty
+          ? _subtitleController.text
+          : '', // Eğer subtitle boşsa boş string olarak kaydediyoruz
       'items': items,
     };
 
     String yamlData = json2yaml(dataMap);
+
     Clipboard.setData(ClipboardData(text: yamlData));
     print("YAML kopyalandı: $yamlData");
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        duration: Duration(seconds: 2),
+        backgroundColor: Colors.green,
+        content: Text('Veriler başarıyla panoya kopyalandı!'),
+      ),
+    );
   }
 
-// Base64'ten resmi geçici bir dosya olarak kaydeden fonksiyon
-  // Base64'ten resmi geçici bir dosya olarak kaydeden fonksiyon
-
-// Base64'ten resmi geçici bir dosya olarak kaydeden fonksiyon
-  Future<String> _convertBase64ToImage(String base64String, int index) async {
-    Uint8List imageBytes = base64Decode(base64String); // Base64 çözme işlemi
-    Directory tempDir = await getTemporaryDirectory();
-    String filePath = '${tempDir.path}/image_$index.png';
-
-    // Dosyayı yazıyoruz
-    File file = File(filePath);
-    await file.writeAsBytes(imageBytes);
-    return filePath; // Geçici dosya yolunu geri döndürüyoruz
-  }
-
+  // Düzenleme sayfasındaki tümünü yapıştır butonu #pasteall,tümünüyapıştırr
   Future<void> _pasteAllFromClipboard() async {
     ClipboardData? data = await Clipboard.getData('text/plain');
     if (data != null) {
       try {
+        // Gelen metni YAML formatına dönüştürün
         var yamlMap = loadYaml(data.text!);
 
         String title = yamlMap['title'];
-        String subtitle = yamlMap['subtitle'];
+        String? subtitle = yamlMap['subtitle'] ?? '';
         List items = yamlMap['items'];
 
+        // Resim yollarını ve item verilerini topluyoruz
         List<String?> imagePaths = [];
-        for (int i = 0; i < items.length; i++) {
-          var item = items[i];
-          if (item['image'] != null && isBase64(item['image'])) {
-            try {
-              String filePath = await _convertBase64ToImage(item['image'], i);
-              imagePaths.add(filePath);
-            } catch (e) {
-              print('Base64 çözme hatası: $e');
-              imagePaths.add(null);
-            }
-          } else {
-            imagePaths.add(item['image']);
-          }
+        List<String> texts = [];
+
+        for (var item in items) {
+          // Eğer text null ise boş string ata
+          texts.add(item['text'] ?? '');
+          // Eğer image null ise boş string ata
+          imagePaths.add(item['image'] ?? '');
         }
 
         setState(() {
           _titleController.text = title;
-          _subtitleController.text = subtitle;
+          _subtitleController.text = subtitle ?? '';
+
           _itemControllers.clear();
           _existingImagePaths.clear();
           _menuKeys.clear();
 
-          for (int i = 0; i < items.length; i++) {
-            var item = items[i];
-            _itemControllers.add(TextEditingController(text: item['text']));
+          // Yeni itemleri ve resim yollarını yerleştiriyoruz
+          for (int i = 0; i < texts.length; i++) {
+            _itemControllers.add(TextEditingController(text: texts[i]));
             _existingImagePaths.add(imagePaths[i]);
             _menuKeys.add(GlobalKey());
           }
         });
+
+        // Yapıştırma işlemi başarılı olursa Snackbar ile bildirim göster
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.green,
+            content: Text('Veriler başarıyla yapıştırıldı!'),
+          ),
+        );
       } catch (e) {
         // Eğer YAML değilse Snackbar ile uyarı göster
         _showInvalidClipboardSnackbar();
@@ -242,9 +255,10 @@ class _EditItemPageState extends State<EditItemPage> {
   void _showInvalidClipboardSnackbar() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-          duration: Duration(seconds: 1),
-          backgroundColor: Colors.red,
-          content: Text('Panoda geçerli bir YAML verisi bulunamadı!')),
+        duration: Duration(seconds: 1),
+        backgroundColor: Colors.red,
+        content: Text('Panoda geçerli bir YAML verisi bulunamadı!'),
+      ),
     );
   }
 
@@ -252,28 +266,66 @@ class _EditItemPageState extends State<EditItemPage> {
   void _addItemField() {
     setState(() {
       _itemControllers.add(TextEditingController());
-      _existingImagePaths.add(null);
+      _existingImagePaths.add(""); // Add empty entry for image path
+      _selectedImages.add(null); // Add empty entry for selected image
+      _focusNodes.add(FocusNode());
 
-      // Yeni item için GlobalKey ekle
-      if (_menuKeys.length < _itemControllers.length) {
-        _menuKeys.add(GlobalKey());
-      }
+      // Ensure _menuKeys also gets a new key for the new item
+      _menuKeys.add(GlobalKey());
+    });
+
+    // Scroll to the new item and focus it
+    Future.delayed(Duration(milliseconds: 100), () {
+      _focusNodes.last.requestFocus();
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
     });
   }
 
   //listeden item silme #listedenitemsilme
-  void _removeItemField(int index) {
-    setState(() {
-      if (_itemControllers.length > 1) {
+  void _removeItemField(int index) async {
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('İtemi silmek istediğinize emin misiniz?'),
+          content: const Text('Bu işlem geri alınamaz.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('İptal'),
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Sil', style: TextStyle(color: Colors.white)),
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      await _sqliteDatasource.deleteItem(widget.item.id, index);
+
+      setState(() {
         _itemControllers.removeAt(index);
         _existingImagePaths.removeAt(index);
+        _selectedImages.removeAt(index);
+        _menuKeys.removeAt(index);
+        _focusNodes.removeAt(index);
+      });
 
-        // Silinen item için GlobalKey de kaldır
-        if (_menuKeys.length > index) {
-          _menuKeys.removeAt(index);
-        }
-      }
-    });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('İtem başarıyla silindi!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   //3 nokta ikonuna tıklandıgında açılan menu #3noktaikonmenüü,3noktaikonuu
@@ -406,7 +458,7 @@ class _EditItemPageState extends State<EditItemPage> {
     );
 
     if (confirm == true) {
-      await _sqliteDatasource.deleteItem(widget.item.id);
+      await _sqliteDatasource.deleteTable(widget.item.id);
       Navigator.pop(context, "deleted");
     }
   }
@@ -418,6 +470,12 @@ class _EditItemPageState extends State<EditItemPage> {
     for (var controller in _itemControllers) {
       controller.dispose();
     }
+
+    // Dispose all FocusNodes
+    for (var focusNode in _focusNodes) {
+      focusNode.dispose();
+    }
+
     super.dispose();
   }
 
@@ -428,7 +486,15 @@ class _EditItemPageState extends State<EditItemPage> {
       appBar: AppBar(
         shadowColor: Colors.green[10],
         surfaceTintColor: Colors.green[400],
-        title: Center(child: Text(widget.item.headerValue)),
+        title: Center(
+          child: Text(widget.item.headerValue),
+        ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).pop("pop");
+          },
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -443,11 +509,11 @@ class _EditItemPageState extends State<EditItemPage> {
         ],
       ),
       body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
         child: Padding(
-          padding: const EdgeInsets.all(10.0),
+          padding: const EdgeInsets.only(right: 10, left: 10, top: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -527,6 +593,7 @@ class _EditItemPageState extends State<EditItemPage> {
                   hintText: 'Başlık',
                   hintStyle: TextStyle(fontStyle: FontStyle.italic),
                   icon: Icon(Icons.title),
+                  // errorText: _isTitleEmpty ? 'Başlık boş bırakılamaz' : null,
                 ),
               ),
               const SizedBox(height: 10),
@@ -548,99 +615,116 @@ class _EditItemPageState extends State<EditItemPage> {
               ),
               const SizedBox(height: 10),
               Expanded(
-                child: ReorderableListView.builder(
-                  itemCount: _itemControllers.length,
-                  onReorder: (int oldIndex, int newIndex) {
-                    setState(() {
-                      if (newIndex > oldIndex) {
-                        newIndex -= 1;
-                      }
-                      final controller = _itemControllers.removeAt(oldIndex);
-                      final image = _selectedImages.removeAt(oldIndex);
-                      final imagePath = _existingImagePaths.removeAt(oldIndex);
-                      _itemControllers.insert(newIndex, controller);
-                      _selectedImages.insert(newIndex, image);
-                      _existingImagePaths.insert(newIndex, imagePath);
-                    });
-                  },
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      key: ValueKey(index),
-                      // #Reorderablee,dragg,dropp
-                      leading: ReorderableDragStartListener(
-                        index: index,
-                        child: const Icon(
-                          Icons.drag_handle,
-                          size: 20,
-                        ),
-                      ),
-                      title: TextField(
-                        key: _menuKeys[index],
-                        controller: _itemControllers[index],
-                        keyboardType: TextInputType.multiline,
-                        minLines: 1,
-                        maxLines: null,
-                        decoration: InputDecoration(
-                          hintText: 'Item ${index + 1}',
-                          prefixIcon: (index < _existingImagePaths.length &&
-                                  _existingImagePaths[index] != null &&
-                                  _existingImagePaths[index]!.isNotEmpty)
-                              ? Padding(
-                                  padding: const EdgeInsets.only(
-                                      right: 8.0, bottom: 8.0),
-                                  child: Image.file(
-                                    File(_existingImagePaths[index]!),
-                                    width: 40,
-                                    height: 40,
-                                    fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) =>
-                                            const Icon(Icons.error),
-                                  ),
-                                )
-                              : Icon(Icons.image,
-                                  size: 50, color: Colors.grey.shade400),
-                          suffixIcon: SizedBox(
-                            width: 70,
-                            height: 40,
-                            child: Stack(
-                              children: [
-                                Positioned(
-                                  left: 0,
-                                  child: IconButton(
-                                    icon: const Icon(Icons.more_vert_sharp),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    onPressed: () {
-                                      _showCustomMenu(
-                                          context, index, _menuKeys[index]);
-                                    },
-                                  ),
-                                ),
-                                Positioned(
-                                  left: 30,
-                                  child: IconButton(
-                                    icon: const Icon(
-                                        Icons.remove_circle_outline,
-                                        color: Colors.red),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    onPressed: () {
-                                      _removeItemField(index);
-                                    },
-                                  ),
-                                ),
-                              ],
+                child: Scrollbar(
+                  radius: const Radius.circular(5.0),
+                  scrollbarOrientation: ScrollbarOrientation.right,
+                  controller: _scrollController,
+                  thumbVisibility: true,
+                  // trackVisibility: true,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ReorderableListView.builder(
+                      scrollController: _scrollController,
+                      itemCount: _itemControllers.length,
+                      onReorder: (int oldIndex, int newIndex) {
+                        setState(() {
+                          if (newIndex > oldIndex) {
+                            newIndex -= 1;
+                          }
+
+                          final controller =
+                              _itemControllers.removeAt(oldIndex);
+                          final image = _selectedImages.removeAt(oldIndex);
+                          final imagePath =
+                              _existingImagePaths.removeAt(oldIndex);
+
+                          _itemControllers.insert(newIndex, controller);
+                          _selectedImages.insert(newIndex, image);
+                          _existingImagePaths.insert(newIndex, imagePath);
+                        });
+                      },
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          key: ValueKey(index),
+                          // #Reorderablee,dragg,dropp
+                          leading: ReorderableDragStartListener(
+                            index: index,
+                            child: const Icon(
+                              Icons.drag_handle,
+                              size: 20,
                             ),
                           ),
-                        ),
-                      ),
-                    );
-                  },
+                          title: TextField(
+                            key: _menuKeys[index],
+                            controller: _itemControllers[index],
+                            focusNode: _focusNodes[index],
+                            keyboardType: TextInputType.multiline,
+                            minLines: 1,
+                            maxLines: null,
+                            decoration: InputDecoration(
+                              hintText: 'Item ${index + 1}',
+                              prefixIcon: (index < _existingImagePaths.length &&
+                                      _existingImagePaths[index] != null &&
+                                      _existingImagePaths[index]!.isNotEmpty)
+                                  ? Padding(
+                                      padding: const EdgeInsets.only(
+                                          right: 8.0, bottom: 8.0),
+                                      child: Image.file(
+                                        File(_existingImagePaths[index]!),
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                const Icon(Icons.error),
+                                      ),
+                                    )
+                                  : Icon(Icons.image,
+                                      size: 50, color: Colors.grey.shade400),
+                              suffixIcon: SizedBox(
+                                width: 70,
+                                height: 40,
+                                child: Stack(
+                                  children: [
+                                    Positioned(
+                                      left: 0,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.more_vert_sharp),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () {
+                                          _showCustomMenu(
+                                              context, index, _menuKeys[index]);
+                                        },
+                                      ),
+                                    ),
+                                    Positioned(
+                                      left: 30,
+                                      child: IconButton(
+                                        icon: const Icon(
+                                            Icons.remove_circle_outline,
+                                            color: Colors.red),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () {
+                                          _removeItemField(index);
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
-              // Add Item button outside of ReorderableListView
+              // Add Item button outside of ReorderableListView-
+              // Remove the Expanded wrapping around the GestureDetector
               GestureDetector(
                 onTap: _addItemField,
                 child: Container(
@@ -655,7 +739,7 @@ class _EditItemPageState extends State<EditItemPage> {
                     children: [
                       Icon(Icons.add, color: Colors.green),
                       SizedBox(width: 8),
-                      Text("İtem Ekle", style: TextStyle(color: Colors.green)),
+                      Text("Item Ekle", style: TextStyle(color: Colors.green)),
                     ],
                   ),
                 ),

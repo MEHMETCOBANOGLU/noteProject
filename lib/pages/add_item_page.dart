@@ -1,19 +1,18 @@
-import 'dart:convert';
 import 'package:get/get_connect/http/src/utils/utils.dart';
-import 'package:image/image.dart' as img;
-import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:proje1/data/database.dart';
 import 'package:proje1/pages/aym_guide_page.dart';
-import 'package:uuid/uuid.dart';
-import 'package:yaml/yaml.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:proje1/data/database.dart';
 import 'package:json2yaml/json2yaml.dart';
-
-import '../model/items.dart';
+import 'package:image/image.dart' as img;
+import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 import '../utility/list_box.dart';
+import 'package:yaml/yaml.dart';
+import 'package:uuid/uuid.dart';
+import '../model/items.dart';
+import 'dart:convert';
+import 'dart:io';
 
 class AddItemPage extends StatefulWidget {
   const AddItemPage({super.key});
@@ -38,12 +37,17 @@ class _AddItemPageState extends State<AddItemPage> {
   bool _isTitleEmpty = false;
   List<String> options = [];
   String? selectedOption;
+  late List<FocusNode> _focusNodes;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _menuKeys = List.generate(_itemControllers.length, (index) => GlobalKey());
     _loadOptionsFromDatabase();
+
+    _focusNodes =
+        List.generate(_itemControllers.length, (index) => FocusNode());
   }
 
   // seçenekler veritabanından yüklenir
@@ -181,9 +185,14 @@ class _AddItemPageState extends State<AddItemPage> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _titleController.dispose();
     for (var controller in _itemControllers) {
       controller.dispose();
+    }
+    // Dispose all FocusNodes
+    for (var focusNode in _focusNodes) {
+      focusNode.dispose();
     }
     super.dispose();
   }
@@ -199,24 +208,24 @@ class _AddItemPageState extends State<AddItemPage> {
   }
 
 // Resmi Base64 formatına çeviren fonksiyon
-  Future<String?> _convertImageToBase64(String? imagePath) async {
-    if (imagePath == null) return null;
-    File imageFile = File(imagePath);
-    if (await imageFile.exists()) {
-      List<int> imageBytes = await imageFile.readAsBytes();
-      return base64Encode(imageBytes);
-    }
-    return null;
-  }
+  // Future<String?> _convertImageToBase64(String? imagePath) async {
+  //   if (imagePath == null) return null;
+  //   File imageFile = File(imagePath);
+  //   if (await imageFile.exists()) {
+  //     List<int> imageBytes = await imageFile.readAsBytes();
+  //     return base64Encode(imageBytes);
+  //   }
+  //   return null;
+  // }
 
+  //Tablo ekleme sayfasındaki tümünü kopyala butonu #copyall,tümünükopyalaa
   void _copyAllToClipboard() async {
-    // YAML formatına uygun bir map yapısı oluşturuyoruz
     var items = await Future.wait(_itemControllers.map((controller) async {
       int index = _itemControllers.indexOf(controller);
-      String? base64Image = await _convertImageToBase64(_imagePaths[index]);
+      // Base64 yerine dosya yolunu kopyalıyoruz
       return {
         'text': controller.text,
-        'image': base64Image, // Resmi Base64 formatında ekliyoruz
+        'image': _imagePaths[index], // Resim dosya yolunu ekliyoruz
       };
     }).toList());
 
@@ -226,16 +235,17 @@ class _AddItemPageState extends State<AddItemPage> {
       'items': items,
     };
 
-    // Map'i YAML formatına çeviriyoruz
     String yamlData = json2yaml(dataMap);
-
-    // YAML verisini panoya kopyalıyoruz
     Clipboard.setData(ClipboardData(text: yamlData));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Veriler panoya başarıyla kopyalandı!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
     print(yamlData);
   }
-
-// Base64'ten resmi geçici bir dosya olarak kaydeden fonksiyon
-  // Base64'ten resmi geçici bir dosya olarak kaydeden fonksiyon
 
 // Base64'ten resmi geçici bir dosya olarak kaydeden fonksiyon
   Future<String> _convertBase64ToImage(String base64String, int index) async {
@@ -246,8 +256,9 @@ class _AddItemPageState extends State<AddItemPage> {
     // Dosyayı yazıyoruz
     File file = File(filePath);
     await file.writeAsBytes(imageBytes);
-    return filePath; // Geçici dosya yolunu geri döndürüyoruz
+    return filePath;
   }
+  // Tablo ekleme sayfasındaki tümünü yapıştır butonu #pasteall,tümünüyapıştırr
 
   Future<void> _pasteAllFromClipboard() async {
     ClipboardData? data =
@@ -259,7 +270,8 @@ class _AddItemPageState extends State<AddItemPage> {
 
         // Eğer geçerli YAML ise işlemi yap
         String title = yamlMap['title'];
-        String subtitle = yamlMap['subtitle'];
+        String subtitle =
+            yamlMap['subtitle'] ?? ''; // Eğer boşsa "" olarak ayarlıyoruz
         List items = yamlMap['items'];
 
         List<String?> imagePaths = [];
@@ -280,7 +292,7 @@ class _AddItemPageState extends State<AddItemPage> {
         // Yapıştırma işlemini gerçekleştiriyoruz
         setState(() {
           _titleController.text = title;
-          _subtitleController.text = subtitle;
+          _subtitleController.text = subtitle; // Alt başlık buraya atanıyor
 
           _itemControllers.clear();
           _menuKeys.clear();
@@ -293,6 +305,15 @@ class _AddItemPageState extends State<AddItemPage> {
             _menuKeys.add(GlobalKey());
           }
         });
+
+        // Yapıştırma işlemi başarılı olursa Snackbar ile bildirim göster
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.green,
+            content: Text('Veriler başarıyla yapıştırıldı!'),
+          ),
+        );
       } catch (e) {
         // Eğer YAML değilse Snackbar ile uyarı göster
         _showInvalidClipboardSnackbar();
@@ -307,9 +328,10 @@ class _AddItemPageState extends State<AddItemPage> {
   void _showInvalidClipboardSnackbar() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-          duration: Duration(seconds: 1),
-          backgroundColor: Colors.red,
-          content: Text('Panoda geçerli bir YAML verisi bulunamadı!')),
+        duration: Duration(seconds: 1),
+        backgroundColor: Colors.red,
+        content: Text('Panoda geçerli bir YAML verisi bulunamadı!'),
+      ),
     );
   }
 
@@ -318,6 +340,10 @@ class _AddItemPageState extends State<AddItemPage> {
     setState(() {
       _itemControllers.add(TextEditingController());
       _imagePaths.add(null);
+
+      // Add a new FocusNode for the new TextField
+      _focusNodes.add(FocusNode());
+      _focusNodes.last.requestFocus();
 
       // Yeni item için GlobalKey ekle
       if (_menuKeys.length < _itemControllers.length) {
@@ -436,7 +462,7 @@ class _AddItemPageState extends State<AddItemPage> {
         title: const Center(child: Text('Yeni Tablo Ekle')),
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline), //info ikonu
+            icon: const Icon(Icons.info_outline),
             onPressed: () {
               Navigator.push(
                 context,
@@ -449,8 +475,10 @@ class _AddItemPageState extends State<AddItemPage> {
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Padding(
-          padding: const EdgeInsets.all(10.0),
+          padding: const EdgeInsets.only(right: 10, left: 10, top: 10),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -460,8 +488,7 @@ class _AddItemPageState extends State<AddItemPage> {
                       onPressed: _copyAllToClipboard,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.grey.shade100,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 4.0), // Smaller padding
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
                         shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.all(Radius.circular(2.0)),
                         ),
@@ -475,14 +502,12 @@ class _AddItemPageState extends State<AddItemPage> {
                       ),
                     ),
                   ),
-                  // const SizedBox(width: 2),
                   Flexible(
                     child: ElevatedButton(
                       onPressed: _pasteAllFromClipboard,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.grey.shade100,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 4.0), // Smaller padding
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
                         shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.all(Radius.circular(2.0)),
                         ),
@@ -502,8 +527,7 @@ class _AddItemPageState extends State<AddItemPage> {
                       onPressed: _addNewTable,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.grey.shade100,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 4.0), // Smaller padding
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
                         shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.all(Radius.circular(2.0)),
                         ),
@@ -549,110 +573,145 @@ class _AddItemPageState extends State<AddItemPage> {
                   ),
                 ),
               ),
+              const SizedBox(height: 10),
               Expanded(
-                child: ListView.builder(
-                  itemCount:
-                      _itemControllers.length + 1, // +1 for the add button
-                  itemBuilder: (context, index) {
-                    if (index < _itemControllers.length) {
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _itemControllers[index],
-                                keyboardType: TextInputType.multiline,
-                                minLines: 1,
-                                maxLines: null,
-                                decoration: InputDecoration(
-                                  hintText: 'Item ${index + 1}',
-                                  prefixIcon: _imagePaths[index] != null
-                                      ? Padding(
-                                          padding: const EdgeInsets.only(
-                                              right: 8.0, bottom: 3.0),
-                                          child: ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(3.0),
-                                            child: Image.file(
-                                              File(_imagePaths[index]!),
-                                              width: 50,
-                                              height: 50,
+                child: Scrollbar(
+                  radius: const Radius.circular(5.0),
+                  scrollbarOrientation: ScrollbarOrientation.right,
+                  controller: _scrollController,
+                  thumbVisibility: true,
+                  // trackVisibility: true,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      shrinkWrap: true,
+                      itemCount: _itemControllers.length + 1,
+                      itemBuilder: (context, index) {
+                        if (index < _itemControllers.length) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _itemControllers[index],
+                                    focusNode: _focusNodes[index],
+                                    keyboardType: TextInputType.multiline,
+                                    minLines: 1,
+                                    maxLines: null,
+                                    decoration: InputDecoration(
+                                      hintText: 'Item ${index + 1}',
+                                      prefixIcon: _imagePaths[index] != null
+                                          ? Padding(
+                                              padding: const EdgeInsets.only(
+                                                  right: 8.0, bottom: 3.0),
+                                              child: ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(3.0),
+                                                child: Image.file(
+                                                  File(_imagePaths[index]!),
+                                                  width: 50,
+                                                  height: 50,
+                                                ),
+                                              ),
+                                            )
+                                          : Icon(
+                                              Icons.image,
+                                              size: 50,
+                                              color: Colors.grey.shade400,
                                             ),
-                                          ),
-                                        )
-                                      : Icon(
-                                          Icons
-                                              .image, //resim ikonu #resimikonuu
-                                          size: 50,
-                                          color: Colors.grey.shade400),
-                                  suffixIcon: SizedBox(
-                                    width: 70,
-                                    height: 40,
-                                    child: Stack(
-                                      children: [
-                                        Positioned(
-                                          left: 0,
-                                          child: IconButton(
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(),
-                                            key: _menuKeys[index],
-                                            icon: const Icon(Icons
-                                                .more_vert_sharp), //3 nokta ikonu #3noktaikonuu
-                                            onPressed: () => _showCustomMenu(
-                                              context,
-                                              index,
-                                              _menuKeys[index],
+                                      suffixIcon: SizedBox(
+                                        width: 70,
+                                        height: 40,
+                                        child: Stack(
+                                          children: [
+                                            Positioned(
+                                              left: 0,
+                                              child: IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                key: _menuKeys[index],
+                                                icon: const Icon(
+                                                    Icons.more_vert_sharp),
+                                                onPressed: () =>
+                                                    _showCustomMenu(
+                                                  context,
+                                                  index,
+                                                  _menuKeys[index],
+                                                ),
+                                              ),
                                             ),
-                                          ),
+                                            Positioned(
+                                              left: 30,
+                                              child: IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                icon: const Icon(
+                                                    Icons.remove_circle_outline,
+                                                    color: Colors.red),
+                                                onPressed: () =>
+                                                    _removeItemField(index),
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        Positioned(
-                                          left: 30,
-                                          child: IconButton(
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(),
-                                            icon: const Icon(
-                                                Icons
-                                                    .remove_circle_outline, //item silme ikonu
-                                                color: Colors.red),
-                                            onPressed: () =>
-                                                _removeItemField(index),
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      );
-                    } else {
-                      return GestureDetector(
-                        onTap: _addItemField,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4.0),
-                          padding: const EdgeInsets.all(16.0),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.green),
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.add, color: Colors.green),
-                              SizedBox(width: 8),
-                              Text('İtem Ekle',
-                                  style: TextStyle(color: Colors.green)),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-                  },
+                          );
+                        } else {
+                          // return GestureDetector(
+                          //   onTap: _addItemField,
+                          //   child: Container(
+                          //     margin: const EdgeInsets.symmetric(vertical: 4.0),
+                          //     padding: const EdgeInsets.all(16.0),
+                          //     decoration: BoxDecoration(
+                          //       border: Border.all(color: Colors.green),
+                          //       borderRadius: BorderRadius.circular(8.0),
+                          //     ),
+                          //     child: const Row(
+                          //       mainAxisAlignment: MainAxisAlignment.center,
+                          //       children: [
+                          //         Icon(Icons.add, color: Colors.green),
+                          //         SizedBox(width: 8),
+                          //         Text('Item Ekle',
+                          //             style: TextStyle(color: Colors.green)),
+                          //       ],
+                          //     ),
+                          //   ),
+                          // );
+                        }
+                      },
+                    ),
+                  ),
                 ),
               ),
+              GestureDetector(
+                onTap: _addItemField,
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4.0),
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.green),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add, color: Colors.green),
+                      SizedBox(width: 8),
+                      Text('Item Ekle', style: TextStyle(color: Colors.green)),
+                    ],
+                  ),
+                ),
+              ),
+              // const SizedBox(height: 220),
             ],
           ),
         ),

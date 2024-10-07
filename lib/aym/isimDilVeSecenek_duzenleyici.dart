@@ -6,35 +6,36 @@ import 'package:proje1/data/database.dart';
 import 'package:proje1/model/items.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-
 import '../utility/image_copy.dart';
 
 Future<void> handleTapOnText(BuildContext context, String text, int index,
     Item item, Function() onTableEdited) async {
-  // Regex patterns
+  // Regex patternler
   final RegExp languagePattern = RegExp(r'\[Dil:(.*?)\]');
   final RegExp namePattern = RegExp(r'\[İsim:(.*?)\]');
   final RegExp optionsPattern = RegExp(r'\[Seçenekler:(.*?)\]');
+  final RegExp imagePattern = RegExp(r'\[Resim:(.*?)\]');
 
-  // Capture matches
+  // Dil, İsim ve Seçenekleri yakala
   final RegExpMatch? languageMatch = languagePattern.firstMatch(text);
   final RegExpMatch? nameMatch = namePattern.firstMatch(text);
   final RegExpMatch? optionsMatch = optionsPattern.firstMatch(text);
+  final RegExpMatch? imageMatch = imagePattern.firstMatch(text);
 
-  // Extract language, name, and options data
+  // Elde edilen verileri al
   String currentDil = languageMatch?.group(1) ?? '';
   String currentName = nameMatch?.group(1) ?? '';
   String optionsString = optionsMatch?.group(1) ?? '';
   List<String> options =
       optionsString.isNotEmpty ? optionsString.split('|') : [];
   String currentOption = options.isNotEmpty ? options[0] : '';
+  String? imageUrl = imageMatch?.group(1); // Resim URL'si, varsa
 
-  // Check if the item has an image (modify this logic as per your Item model)
-  bool hasImage =
-      item.imageUrls![index] != null && item.imageUrls![index].isNotEmpty;
-
-  // Open the dialog only if one of the patterns exists
-  if (languageMatch != null || nameMatch != null || optionsMatch != null) {
+  // Eğer herhangi bir tag varsa, dialogu aç
+  if (languageMatch != null ||
+      nameMatch != null ||
+      optionsMatch != null ||
+      imageMatch != null) {
     await showAllTagsEditDialog(
       context,
       currentDil,
@@ -43,7 +44,7 @@ Future<void> handleTapOnText(BuildContext context, String text, int index,
       options,
       item,
       index,
-      hasImage, // Pass the image status to the dialog
+      imageUrl, // Resim URL'sini dialoga gönder
     );
   }
 }
@@ -56,14 +57,13 @@ Future<void> showAllTagsEditDialog(
   List<String> options,
   Item item,
   int index,
-  bool hasImage, // New parameter to check if the image exists
+  String? imageUrl, // Resim URL'si, varsa null olabilir
 ) async {
   String text = item.expandedValue[index];
   TextEditingController dilController = TextEditingController(text: currentDil);
   TextEditingController isimController =
       TextEditingController(text: currentName);
   String selectedOption = currentSelection;
-  final ScrollController _scrollController = ScrollController();
   final ImagePicker picker = ImagePicker();
   XFile? selectedImage;
 
@@ -94,6 +94,8 @@ Future<void> showAllTagsEditDialog(
                           color: Colors.black87),
                     ),
                     const SizedBox(height: 20),
+
+                    // Dil güncelleme alanı
                     if (currentDil.isNotEmpty)
                       Column(
                         children: [
@@ -103,7 +105,7 @@ Future<void> showAllTagsEditDialog(
                                 fontSize: 16, color: Colors.green[400]),
                           ),
                           TextField(
-                            // controller: dilController,
+                            controller: dilController,
                             decoration: InputDecoration(
                               hintText: dilController.text,
                               hintStyle: const TextStyle(color: Colors.black54),
@@ -117,6 +119,8 @@ Future<void> showAllTagsEditDialog(
                         ],
                       ),
                     const SizedBox(height: 10),
+
+                    // İsim güncelleme alanı
                     if (currentName.isNotEmpty)
                       Column(
                         children: [
@@ -126,10 +130,11 @@ Future<void> showAllTagsEditDialog(
                                 fontSize: 16, color: Colors.green[400]),
                           ),
                           TextField(
-                            // controller: isimController,
+                            controller: isimController,
                             decoration: InputDecoration(
                                 hintText: isimController.text,
-                                hintStyle: TextStyle(color: Colors.black54)),
+                                hintStyle:
+                                    const TextStyle(color: Colors.black54)),
                             onChanged: (value) {
                               setState(() {
                                 isimController.text = value;
@@ -139,6 +144,8 @@ Future<void> showAllTagsEditDialog(
                         ],
                       ),
                     const SizedBox(height: 10),
+
+                    // Seçenekleri güncelleme alanı
                     if (options.isNotEmpty)
                       Column(
                         children: [
@@ -153,9 +160,7 @@ Future<void> showAllTagsEditDialog(
                             child: Scrollbar(
                               trackVisibility: true,
                               thumbVisibility: true,
-                              controller: _scrollController,
                               child: ListView.builder(
-                                controller: _scrollController,
                                 itemCount: options.length,
                                 shrinkWrap: true,
                                 itemBuilder: (context, index) {
@@ -176,54 +181,48 @@ Future<void> showAllTagsEditDialog(
                           ),
                         ],
                       ),
-                    const SizedBox(height: 20),
-                    if (!hasImage) ...[
-                      Divider(thickness: 1, color: Colors.green[100]),
+                    // const SizedBox(height: 20),
+
+                    // Eğer [Resim:] etiketi varsa, resmi göster ve düzenlemeye izin ver
+                    if (imageUrl != null) ...[
+                      // Divider(thickness: 1, color: Colors.green[100]),
                       Text(
-                        "Resimi Güncelle:",
+                        "Resmi Güncelle:",
                         style:
                             TextStyle(fontSize: 16, color: Colors.green[400]),
                       ),
                       const SizedBox(height: 10),
-                      // Image selection only if no image exists
-                      selectedImage == null
-                          ? Container(
-                              height: 150,
-                              width: 150,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                              ),
-                              child: Center(
-                                child: IconButton(
+
+                      // Mevcut resmi göster
+                      Container(
+                          height: 150,
+                          width: 150,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                          ),
+                          child: imageUrl!.isNotEmpty
+                              ? Image.file(
+                                  File(imageUrl!),
+                                  fit: BoxFit.cover,
+                                )
+                              : IconButton(
                                   onPressed: () async {
                                     final XFile? image = await picker.pickImage(
                                         source: ImageSource.gallery);
                                     if (image != null) {
                                       setState(() {
                                         selectedImage = image;
+                                        imageUrl =
+                                            image.path; // Resim yolunu güncelle
                                       });
                                     }
                                   },
-                                  icon: const Icon(
-                                    size: 100,
-                                    Icons.file_download_outlined,
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : Container(
-                              height: 150,
-                              width: 150,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                              ),
-                              child: Image.file(
-                                File(selectedImage!.path),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
+                                  icon: Icon(Icons.file_download_outlined),
+                                  iconSize: 100,
+                                  color: Colors.grey)),
+
                       const SizedBox(height: 10),
+
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green[50],
@@ -234,6 +233,7 @@ Future<void> showAllTagsEditDialog(
                           if (image != null) {
                             setState(() {
                               selectedImage = image;
+                              imageUrl = image.path; // Resim yolunu güncelle
                             });
                           }
                         },
@@ -242,9 +242,6 @@ Future<void> showAllTagsEditDialog(
                                 color: Colors.grey,
                                 fontWeight: FontWeight.bold)),
                       ),
-                    ] else ...[
-                      // const Text('Resim zaten mevcut, düzenlenemez.',
-                      //     style: TextStyle(color: Colors.red)),
                     ],
                   ],
                 ),
@@ -291,15 +288,19 @@ Future<void> showAllTagsEditDialog(
                       if (options.isNotEmpty) {
                         updatedText = updatedText.replaceFirst(
                             RegExp(r'\[Seçenekler:(.*?)\]'),
-                            '[Seçenekler:${selectedOption}]');
+                            '[Seçenekler:$selectedOption]');
                       }
 
-                      // Etiketleri temizleyip metni kopyala
-                      String displayText = getDisplayText(updatedText);
-                      Clipboard.setData(ClipboardData(text: displayText));
+                      if (imageUrl != null) {
+                        updatedText = updatedText.replaceFirst(
+                            RegExp(r'\[Resim:(.*?)\]'), '[Resim:$imageUrl]');
+                      }
 
-                      if (selectedImage != null) {
-                        copyImageToClipboard(context, selectedImage!.path);
+                      // Metni ve varsa resmi kopyala
+                      Clipboard.setData(
+                          ClipboardData(text: getDisplayText(updatedText)));
+                      if (imageUrl != null && imageUrl!.isNotEmpty) {
+                        copyImageToClipboard(context, imageUrl!);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               duration: Duration(seconds: 1),
@@ -310,8 +311,7 @@ Future<void> showAllTagsEditDialog(
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               duration: Duration(seconds: 1),
-                              content: Text(
-                                  'Metin panoya kopyalandı! Resim seçilmedi.')),
+                              content: Text('Metin panoya kopyalandı!')),
                         );
                       }
 
@@ -328,11 +328,12 @@ Future<void> showAllTagsEditDialog(
   );
 }
 
-// Display text function: Displays only name and language info
+// Display text function: Displays only name, language, and option info// Display text function: Displays only name, language, and option info
 String getDisplayText(String text) {
   final RegExp languagePattern = RegExp(r'\[Dil:(.*?)\]');
   final RegExp namePattern = RegExp(r'\[İsim:(.*?)\]');
   final RegExp optionsPattern = RegExp(r'\[Seçenekler:(.*?)\]');
+  final RegExp imagePattern = RegExp(r'\[Resim:(.*?)\]');
 
   // Dil etiketini kaldır ve sadece içeriği bırak
   text = text.replaceAllMapped(languagePattern, (match) {
@@ -351,17 +352,22 @@ String getDisplayText(String text) {
     return options.isNotEmpty ? options[0] : '';
   });
 
+  // Resim etiketini kaldır (resim içeriğini görüntülemiyoruz)
+  text = text.replaceAllMapped(imagePattern, (match) {
+    return ''; // Resim tagini gösterme, boş bırak
+  });
+
   return text;
 }
 
-// Display text function: Displays name and language info with color
+// Display text function: Displays name, language, option info with color
 Widget getColoredDisplayText(String text) {
   List<InlineSpan> textSpans = [];
   int currentIndex = 0;
 
-  // Hem Dil, İsim hem de Seçenekler patternlerini kapsayan regex
-  final RegExp allPatterns =
-      RegExp(r'\[Dil:(.*?)\]|\[İsim:(.*?)\]|\[Seçenekler:(.*?)\]');
+  // Hem Dil, İsim, Seçenekler ve Resim patternlerini kapsayan regex
+  final RegExp allPatterns = RegExp(
+      r'\[Dil:(.*?)\]|\[İsim:(.*?)\]|\[Seçenekler:(.*?)\]|\[Resim:(.*?)\]');
   Iterable<RegExpMatch> matches = allPatterns.allMatches(text);
 
   for (final match in matches) {
@@ -428,6 +434,7 @@ Widget getColoredDisplayText(String text) {
       );
     }
 
+    // Resim patterni: Resim tagi görünmeyecek
     currentIndex = match.end;
   }
 
