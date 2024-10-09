@@ -644,6 +644,10 @@ class _EditItemPageState extends State<EditItemPage> {
                         });
                       },
                       itemBuilder: (context, index) {
+                        if (_focusNodes.length <= index) {
+                          _focusNodes.add(FocusNode()); // Add missing FocusNode
+                        }
+
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
                           key: ValueKey(index),

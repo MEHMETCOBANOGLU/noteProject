@@ -358,6 +358,7 @@ class _AddItemPageState extends State<AddItemPage> {
       if (_itemControllers.length > 1) {
         _itemControllers.removeAt(index);
         _imagePaths.removeAt(index);
+        _focusNodes.removeAt(index);
 
         // Silinen item için GlobalKey de kaldır
         if (_menuKeys.length > index) {
@@ -580,113 +581,92 @@ class _AddItemPageState extends State<AddItemPage> {
                   scrollbarOrientation: ScrollbarOrientation.right,
                   controller: _scrollController,
                   thumbVisibility: true,
-                  // trackVisibility: true,
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: ListView.builder(
                       controller: _scrollController,
                       shrinkWrap: true,
-                      itemCount: _itemControllers.length + 1,
+                      itemCount: _itemControllers.length,
                       itemBuilder: (context, index) {
-                        if (index < _itemControllers.length) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _itemControllers[index],
-                                    focusNode: _focusNodes[index],
-                                    keyboardType: TextInputType.multiline,
-                                    minLines: 1,
-                                    maxLines: null,
-                                    decoration: InputDecoration(
-                                      hintText: 'Item ${index + 1}',
-                                      prefixIcon: _imagePaths[index] != null
-                                          ? Padding(
-                                              padding: const EdgeInsets.only(
-                                                  right: 8.0, bottom: 3.0),
-                                              child: ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(3.0),
-                                                child: Image.file(
-                                                  File(_imagePaths[index]!),
-                                                  width: 50,
-                                                  height: 50,
-                                                ),
-                                              ),
-                                            )
-                                          : Icon(
-                                              Icons.image,
-                                              size: 50,
-                                              color: Colors.grey.shade400,
-                                            ),
-                                      suffixIcon: SizedBox(
-                                        width: 70,
-                                        height: 40,
-                                        child: Stack(
-                                          children: [
-                                            Positioned(
-                                              left: 0,
-                                              child: IconButton(
-                                                padding: EdgeInsets.zero,
-                                                constraints:
-                                                    const BoxConstraints(),
-                                                key: _menuKeys[index],
-                                                icon: const Icon(
-                                                    Icons.more_vert_sharp),
-                                                onPressed: () =>
-                                                    _showCustomMenu(
-                                                  context,
-                                                  index,
-                                                  _menuKeys[index],
-                                                ),
+                        if (_focusNodes.length <= index) {
+                          _focusNodes.add(FocusNode()); // Add missing FocusNode
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _itemControllers[index],
+                                  focusNode: _focusNodes[index],
+                                  keyboardType: TextInputType.multiline,
+                                  minLines: 1,
+                                  maxLines: null,
+                                  decoration: InputDecoration(
+                                    hintText: 'Item ${index + 1}',
+                                    prefixIcon: _imagePaths[index] != null
+                                        ? Padding(
+                                            padding: const EdgeInsets.only(
+                                                right: 8.0, bottom: 3.0),
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(3.0),
+                                              child: Image.file(
+                                                File(_imagePaths[index]!),
+                                                width: 50,
+                                                height: 50,
                                               ),
                                             ),
-                                            Positioned(
-                                              left: 30,
-                                              child: IconButton(
-                                                padding: EdgeInsets.zero,
-                                                constraints:
-                                                    const BoxConstraints(),
-                                                icon: const Icon(
-                                                    Icons.remove_circle_outline,
-                                                    color: Colors.red),
-                                                onPressed: () =>
-                                                    _removeItemField(index),
+                                          )
+                                        : Icon(
+                                            Icons.image,
+                                            size: 50,
+                                            color: Colors.grey.shade400,
+                                          ),
+                                    suffixIcon: SizedBox(
+                                      width: 70,
+                                      height: 40,
+                                      child: Stack(
+                                        children: [
+                                          Positioned(
+                                            left: 0,
+                                            child: IconButton(
+                                              padding: EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              key: _menuKeys[index],
+                                              icon: const Icon(
+                                                  Icons.more_vert_sharp),
+                                              onPressed: () => _showCustomMenu(
+                                                context,
+                                                index,
+                                                _menuKeys[index],
                                               ),
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                          Positioned(
+                                            left: 30,
+                                            child: IconButton(
+                                              padding: EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              icon: const Icon(
+                                                  Icons.remove_circle_outline,
+                                                  color: Colors.red),
+                                              onPressed: () =>
+                                                  _removeItemField(index),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
-                          );
-                        } else {
-                          // return GestureDetector(
-                          //   onTap: _addItemField,
-                          //   child: Container(
-                          //     margin: const EdgeInsets.symmetric(vertical: 4.0),
-                          //     padding: const EdgeInsets.all(16.0),
-                          //     decoration: BoxDecoration(
-                          //       border: Border.all(color: Colors.green),
-                          //       borderRadius: BorderRadius.circular(8.0),
-                          //     ),
-                          //     child: const Row(
-                          //       mainAxisAlignment: MainAxisAlignment.center,
-                          //       children: [
-                          //         Icon(Icons.add, color: Colors.green),
-                          //         SizedBox(width: 8),
-                          //         Text('Item Ekle',
-                          //             style: TextStyle(color: Colors.green)),
-                          //       ],
-                          //     ),
-                          //   ),
-                          // );
-                        }
+                              ),
+                            ],
+                          ),
+                        );
                       },
                     ),
                   ),
@@ -711,7 +691,6 @@ class _AddItemPageState extends State<AddItemPage> {
                   ),
                 ),
               ),
-              // const SizedBox(height: 220),
             ],
           ),
         ),
