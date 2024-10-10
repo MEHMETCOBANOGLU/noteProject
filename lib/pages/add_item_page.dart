@@ -207,17 +207,6 @@ class _AddItemPageState extends State<AddItemPage> {
     }
   }
 
-// Resmi Base64 formatına çeviren fonksiyon
-  // Future<String?> _convertImageToBase64(String? imagePath) async {
-  //   if (imagePath == null) return null;
-  //   File imageFile = File(imagePath);
-  //   if (await imageFile.exists()) {
-  //     List<int> imageBytes = await imageFile.readAsBytes();
-  //     return base64Encode(imageBytes);
-  //   }
-  //   return null;
-  // }
-
   //Tablo ekleme sayfasındaki tümünü kopyala butonu #copyall,tümünükopyalaa
   void _copyAllToClipboard() async {
     var items = await Future.wait(_itemControllers.map((controller) async {
@@ -481,85 +470,99 @@ class _AddItemPageState extends State<AddItemPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Flexible(
-                    child: ElevatedButton(
-                      onPressed: _copyAllToClipboard,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey.shade100,
-                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(2.0)),
+              Padding(
+                padding: const EdgeInsets.only(left: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: ElevatedButton(
+                        onPressed: _copyAllToClipboard,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey.shade100,
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(2.0)),
+                          ),
                         ),
-                      ),
-                      child: const FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          'Tümünü Kopyala',
-                          style: TextStyle(color: Colors.green),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Flexible(
-                    child: ElevatedButton(
-                      onPressed: _pasteAllFromClipboard,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey.shade100,
-                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(2.0)),
-                        ),
-                      ),
-                      child: const FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          'Tümünü Yapıştır',
-                          style: TextStyle(color: Colors.green),
+                        child: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Tümünü Kopyala',
+                            style: TextStyle(color: Colors.green),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 30),
-                  Flexible(
-                    child: ElevatedButton(
-                      onPressed: _addNewTable,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey.shade100,
-                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(2.0)),
+                    Flexible(
+                      child: ElevatedButton(
+                        onPressed: _pasteAllFromClipboard,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey.shade100,
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(2.0)),
+                          ),
                         ),
-                      ),
-                      child: const FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          'Ekle',
-                          style: TextStyle(color: Colors.green),
+                        child: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Tümünü Yapıştır',
+                            style: TextStyle(color: Colors.green),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _titleController,
-                keyboardType: TextInputType.multiline,
-                minLines: 1,
-                maxLines: null,
-                decoration: InputDecoration(
-                  hintText: 'Başlık',
-                  hintStyle: const TextStyle(fontStyle: FontStyle.italic),
-                  icon: const Icon(Icons.title),
-                  errorText: _isTitleEmpty ? 'Başlık boş bırakılamaz' : null,
+                    const SizedBox(width: 30),
+                    Flexible(
+                      child: ElevatedButton(
+                        onPressed: _addNewTable,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey.shade100,
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(2.0)),
+                          ),
+                        ),
+                        child: const FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Ekle',
+                            style: TextStyle(color: Colors.green),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // IconButton(
+                    //   padding: EdgeInsets.zero,
+                    //   onPressed: () {},
+                    //   icon: const Icon(Icons.more_vert, color: Colors.green),
+                    // ),
+                  ],
                 ),
               ),
               const SizedBox(height: 10),
               Padding(
-                padding: const EdgeInsets.only(left: 40.0),
+                padding: const EdgeInsets.only(right: 10.0),
+                child: TextField(
+                  controller: _titleController,
+                  keyboardType: TextInputType.multiline,
+                  minLines: 1,
+                  maxLines: null,
+                  decoration: InputDecoration(
+                    hintText: 'Başlık',
+                    hintStyle: const TextStyle(fontStyle: FontStyle.italic),
+                    icon: const Icon(Icons.title),
+                    errorText: _isTitleEmpty ? 'Başlık boş bırakılamaz' : null,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.only(left: 40.0, right: 10.0),
                 child: TextField(
                   controller: _subtitleController,
                   keyboardType: TextInputType.multiline,
@@ -619,10 +622,12 @@ class _AddItemPageState extends State<AddItemPage> {
                                               ),
                                             ),
                                           )
-                                        : Icon(
-                                            Icons.image,
-                                            size: 50,
-                                            color: Colors.grey.shade400,
+                                        : IconButton(
+                                            padding: EdgeInsets.zero,
+                                            onPressed: () => _pickImage(index),
+                                            icon: Icon(Icons.image,
+                                                size: 50,
+                                                color: Colors.grey.shade400),
                                           ),
                                     suffixIcon: SizedBox(
                                       width: 70,

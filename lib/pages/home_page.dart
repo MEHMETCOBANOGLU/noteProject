@@ -250,23 +250,13 @@ class _HomePageState extends State<HomePage>
       appBar: AppBar(
         shadowColor: Colors.green[10],
         surfaceTintColor: Colors.green[400],
-        title: Center(
-          child: Container(
-            padding: EdgeInsets.all(7.0),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10.0),
-              // color: Colors.brown[200],
-            ),
-            child: const Text(
-              'DEV SECURE',
-              style: TextStyle(
-                  fontSize: 34,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins'),
-            ),
+        title: const Center(
+            child: Text(
+          'DEV SECURE',
+          style: TextStyle(
+            fontSize: 25,
           ),
-        ),
+        )),
       ),
       body: Column(
         children: [

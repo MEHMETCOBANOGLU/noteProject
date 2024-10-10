@@ -161,92 +161,99 @@ class _ListItemState extends State<ListItem> {
                       widget.item.imageUrls![idx].isNotEmpty
                   ? widget.item.imageUrls![idx]
                   : null;
-
-              return Column(
-                children: [
-                  ListTile(
-                    focusColor: Colors.green[50],
-                    hoverColor: Colors.green[50],
-                    splashColor: Colors.green[50],
-                    horizontalTitleGap: 10,
-                    minVerticalPadding: 10,
-                    minLeadingWidth: 10,
-                    minTileHeight: 10,
-                    title: GestureDetector(
-                      onLongPress: () {
-                        // Uzun basıldığında resmi ve texti panoya kopyalama #imagecopyy,textcopyy
-                        if (imageUrl != null && imageUrl.isNotEmpty) {
-                          copyImageToClipboard(context, imageUrl);
-                        }
-                        _copyText(text);
-                      },
-                      child: getColoredDisplayText(text), //#displaytextt
-                    ),
-                    leading: GestureDetector(
-                      // Resmi görüntüleme sayfasına gonderme
-                      onTap: imageUrl != null
-                          ? () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ShowImage(
-                                    imagePaths: widget.item.imageUrls ?? [],
-                                    item: widget.item,
-                                    initialIndex: idx,
-                                  ),
-                                ),
-                              );
-                            }
-                          : null,
-                      child: imageUrl != null &&
-                              imageUrl.isNotEmpty &&
-                              File(imageUrl).existsSync()
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(3.0),
-                              child: Image.file(
-                                File(imageUrl),
-                                width: 50,
-                                height: 50,
-                                fit: BoxFit.cover,
-                              ),
-                            )
-                          : GestureDetector(
-                              onTap: () {
-                                // // Resim aym. resim seçip kopyalama #resimaymm,aymm
-                                // selectAndCopyImageDialog(
-                                //     context, widget.item.expandedValue[idx]
-                                //     );
-                              },
-                              child: Icon(Icons.image,
-                                  size: 50, color: Colors.grey.shade400),
-                            ),
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    dense: true,
-                    onTap: () {
-                      //İsim, dil, seçenekler ve resimgibi bilgileri düzenleme sayfasına gonderme #aymm,isimaymm,seçenekaymm,dilaymm
-                      print(text);
-                      print(idx);
-                      handleTapOnText(
-                        context,
-                        text,
-                        idx,
-                        widget.item,
-                        () {
-                          setState(() {}); // onTableEdited çağrılıyor
+              // Metin uzunluğu ve görsel durumuna göre padding ayarla
+              double bottomPadding = (text.isEmpty || text.length < 20) &&
+                      imageUrl == null
+                  ? 10.0 // Eğer metin kısa veya boşsa, görsel varsa daha fazla padding ekliyoruz
+                  : 1.0; // Aksi halde varsayılan padding
+              return Padding(
+                padding: EdgeInsets.only(bottom: bottomPadding),
+                child: Column(
+                  children: [
+                    ListTile(
+                      focusColor: Colors.green[50],
+                      hoverColor: Colors.green[50],
+                      splashColor: Colors.green[50],
+                      horizontalTitleGap: 10,
+                      minVerticalPadding: 10,
+                      minLeadingWidth: 10,
+                      minTileHeight: 10,
+                      title: GestureDetector(
+                        onLongPress: () {
+                          // Uzun basıldığında resmi ve texti panoya kopyalama #imagecopyy,textcopyy
+                          if (imageUrl != null && imageUrl.isNotEmpty) {
+                            copyImageToClipboard(context, imageUrl);
+                          }
+                          _copyText(text);
                         },
-                      );
-                    },
-                  ),
-                  if (widget.item.expandedValue.length > 1 &&
-                      idx < widget.item.expandedValue.length - 1)
-                    Divider(
-                      thickness: 2,
-                      indent: 28,
-                      endIndent: 28,
-                      color: Colors.green[50],
+                        child: getColoredDisplayText(text), //#displaytextt
+                      ),
+                      leading: GestureDetector(
+                        // Resmi görüntüleme sayfasına gonderme
+                        onTap: imageUrl != null
+                            ? () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ShowImage(
+                                      imagePaths: widget.item.imageUrls ?? [],
+                                      item: widget.item,
+                                      initialIndex: idx,
+                                    ),
+                                  ),
+                                );
+                              }
+                            : null,
+                        child: imageUrl != null &&
+                                imageUrl.isNotEmpty &&
+                                File(imageUrl).existsSync()
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(3.0),
+                                child: Image.file(
+                                  File(imageUrl),
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : GestureDetector(
+                                onTap: () {
+                                  // // Resim aym. resim seçip kopyalama #resimaymm,aymm
+                                  // selectAndCopyImageDialog(
+                                  //     context, widget.item.expandedValue[idx]
+                                  //     );
+                                },
+                                child: Icon(Icons.image,
+                                    size: 50, color: Colors.grey.shade400),
+                              ),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      dense: true,
+                      onTap: () {
+                        //İsim, dil, seçenekler ve resimgibi bilgileri düzenleme sayfasına gonderme #aymm,isimaymm,seçenekaymm,dilaymm
+                        print(text);
+                        print(idx);
+                        handleTapOnText(
+                          context,
+                          text,
+                          idx,
+                          widget.item,
+                          () {
+                            setState(() {}); // onTableEdited çağrılıyor
+                          },
+                        );
+                      },
                     ),
-                ],
+                    if (widget.item.expandedValue.length > 1 &&
+                        idx < widget.item.expandedValue.length - 1)
+                      Divider(
+                        thickness: 2,
+                        indent: 28,
+                        endIndent: 28,
+                        color: Colors.green[50],
+                      ),
+                  ],
+                ),
               );
             }).toList(),
           ),

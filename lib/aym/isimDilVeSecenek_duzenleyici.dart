@@ -2,10 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart';
 import 'package:proje1/model/items.dart';
 import 'package:proje1/utility/image_copy.dart';
 
 // ... Diğer importlar
+Future<void> _copyText(BuildContext context, String text) async {
+  final displayText = getDisplayText(text);
+  Clipboard.setData(ClipboardData(text: displayText));
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      duration: Duration(seconds: 1),
+      content: Text(
+        text.length > 30
+            ? '${displayText.substring(0, 30)}... panoya kopyalandı!'
+            : '$displayText panoya kopyalandı!',
+      ),
+    ),
+  );
+}
 
 Future<void> handleTapOnText(BuildContext context, String text, int index,
     Item item, Function() onTableEdited) async {
@@ -28,6 +43,13 @@ Future<void> handleTapOnText(BuildContext context, String text, int index,
       'match': match,
     });
   }
+  // eğer hiçbir etiket yoksa, metin panoya kopyala
+  if (tagList.isEmpty) {
+    if (item.imageUrls![index].isNotEmpty) {
+      copyImageToClipboard(context, item.imageUrls![index]);
+    }
+    _copyText(context, text);
+  }
 
   final ImagePicker picker = ImagePicker();
 
@@ -42,12 +64,7 @@ Future<void> handleTapOnText(BuildContext context, String text, int index,
       if (image != null) {
         // Görseli panoya kopyala
         copyImageToClipboard(context, image.path);
-        await Clipboard.setData(ClipboardData(text: getDisplayText(text)));
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              duration: Duration(seconds: 1),
-              content: Text('Metin panoya kopyalandı!')),
-        );
+        _copyText(context, text);
       }
       return;
     }
@@ -541,8 +558,8 @@ Widget getColoredDisplayText(String text) {
     ));
   }
 
-  // Eğer oluşan metin boş ise varsayılan bir mesaj göster
-  if (textSpans.isEmpty) {
+  // Eğer oluşan metin sadece [DİL] etiketi içeriyorsa varsayılan mesaj göster
+  if ((textSpans.length == 1 && textSpans[0].toPlainText() == "[DİL]")) {
     textSpans.add(const TextSpan(
       text: "Resim İçeriği Bulunamadı",
       style: TextStyle(color: Colors.grey),
