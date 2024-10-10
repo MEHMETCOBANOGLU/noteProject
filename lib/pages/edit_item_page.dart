@@ -6,6 +6,7 @@ import 'package:proje1/model/items.dart';
 import 'package:image/image.dart' as img;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:uuid/uuid.dart';
 import 'package:yaml/yaml.dart';
 import '../data/database.dart';
 import 'dart:convert';
@@ -25,12 +26,12 @@ class _EditItemPageState extends State<EditItemPage> {
   late List<TextEditingController> _itemControllers;
   late TextEditingController _subtitleController;
   late TextEditingController _titleController;
-
   late List<FocusNode> _focusNodes;
   final ImagePicker _picker = ImagePicker();
   List<String?> _existingImagePaths = [];
   List<File?> _selectedImages = [];
   List<GlobalKey> _menuKeys = [];
+  final GlobalKey _moreVertKey = GlobalKey();
   List<String> options = [];
   String? selectedOption;
   bool _isAddingNewOption = false;
@@ -112,7 +113,7 @@ class _EditItemPageState extends State<EditItemPage> {
 
     if (success) {
       Navigator.pop(context,
-          "deleted"); // Düzenleme başarılı olduğunda "saved" döndürüyoruz.
+          "saved"); // Düzenleme başarılı olduğunda "saved" döndürüyoruz.
     } else {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Tablo düzenlenemedi!')));
@@ -287,28 +288,10 @@ class _EditItemPageState extends State<EditItemPage> {
 
   //listeden item silme #listedenitemsilme
   void _removeItemField(int index) async {
-    bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('İtemi silmek istediğinize emin misiniz?'),
-          content: const Text('Bu işlem geri alınamaz.'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('İptal'),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Sil', style: TextStyle(color: Colors.white)),
-              onPressed: () => Navigator.of(context).pop(true),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirm == true) {
+    // Eğer metin veya görsel yoksa doğrudan sil
+    if (_itemControllers[index].text.isEmpty &&
+        (_existingImagePaths[index] == null ||
+            _existingImagePaths[index]!.isEmpty)) {
       await _sqliteDatasource.deleteItem(widget.item.id, index);
 
       setState(() {
@@ -318,13 +301,47 @@ class _EditItemPageState extends State<EditItemPage> {
         _menuKeys.removeAt(index);
         _focusNodes.removeAt(index);
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('İtem başarıyla silindi!'),
-          backgroundColor: Colors.green,
-        ),
+    } else {
+      // Metin veya görsel varsa onay almak için dialog göster
+      bool? confirm = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('İtemi silmek istediğinize emin misiniz?'),
+            content: const Text('Bu işlem geri alınamaz.'),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('İptal'),
+                onPressed: () => Navigator.of(context).pop(false),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Sil', style: TextStyle(color: Colors.white)),
+                onPressed: () => Navigator.of(context).pop(true),
+              ),
+            ],
+          );
+        },
       );
+
+      if (confirm == true) {
+        await _sqliteDatasource.deleteItem(widget.item.id, index);
+
+        setState(() {
+          _itemControllers.removeAt(index);
+          _existingImagePaths.removeAt(index);
+          _selectedImages.removeAt(index);
+          _menuKeys.removeAt(index);
+          _focusNodes.removeAt(index);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('İtem başarıyla silindi!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 
@@ -479,6 +496,99 @@ class _EditItemPageState extends State<EditItemPage> {
     super.dispose();
   }
 
+  // Kaydet butonu yanındaki 3 noktaya basınca açılan "Tabloyu Klonla" menüsü
+  void _showCloneMenu(BuildContext context, GlobalKey key) {
+    final RenderBox renderBox =
+        key.currentContext!.findRenderObject() as RenderBox;
+    final Offset offset = renderBox.localToGlobal(Offset.zero);
+
+    showMenu(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        offset.dx,
+        offset.dy + renderBox.size.height,
+        offset.dx + renderBox.size.width,
+        offset.dy,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+      items: [
+        PopupMenuItem(
+          child: ListTile(
+            leading: const Icon(Icons.copy),
+            title: const Text('Tabloyu klonla'),
+            onTap: () async {
+              Navigator.pop(context);
+              await _cloneTable();
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+// Tabloyu klonlamak için kullanılan fonksiyon
+  Future<void> _cloneTable() async {
+    var uuid = const Uuid().v4();
+    String clonedTitle = await _getClonedTitle(_titleController.text);
+
+    //klonlanan tablo için yeni ıtem oluşturma işlemi
+    Item clonedItem = Item(
+      id: uuid,
+      headerValue: clonedTitle,
+      subtitle: _subtitleController.text,
+      expandedValue:
+          _itemControllers.map((controller) => controller.text).toList(),
+      imageUrls: List<String>.from(_existingImagePaths),
+      isExpanded: false,
+    );
+
+    bool success = await _sqliteDatasource.addOrUpdateNote(clonedItem);
+
+    if (success) {
+      Navigator.pop(context, "pop");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$clonedTitle Tablosu başarıyla klonlandı!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tablo klonlanamadı!'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+//Klonlaanan tablolar için title üretme
+  Future<String> _getClonedTitle(String originalTitle) async {
+    // Veritabanından mevcut öğeleri alın
+    List<Item> existingItems = await _sqliteDatasource.getNotes();
+
+    String clonedTitle;
+
+    // Kopyalama için temel isim
+    String baseName = originalTitle;
+
+    // İlk kopyalama için varsayılan ek
+    String copySuffix = ' - Kopya';
+
+    // İlk olarak, "baseName + copySuffix" adının mevcut olup olmadığını kontrol edin
+    clonedTitle = '$baseName$copySuffix';
+
+    int copyNumber = 2;
+
+    // Eğer aynı isimde bir dosya varsa, numaralandırmayı artırın
+    while (existingItems.any((item) => item.headerValue == clonedTitle)) {
+      clonedTitle = '$baseName$copySuffix ($copyNumber)';
+      copyNumber++;
+    }
+
+    return clonedTitle;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -580,6 +690,15 @@ class _EditItemPageState extends State<EditItemPage> {
                         ),
                       ),
                     ),
+                  ),
+                  IconButton(
+                    key: _moreVertKey,
+                    padding: EdgeInsets.zero,
+                    onPressed: () {
+                      _showCloneMenu(context, _moreVertKey);
+                      // _cloneTable();
+                    },
+                    icon: const Icon(Icons.more_vert, color: Colors.green),
                   ),
                 ],
               ),
@@ -684,8 +803,13 @@ class _EditItemPageState extends State<EditItemPage> {
                                                 const Icon(Icons.error),
                                       ),
                                     )
-                                  : Icon(Icons.image,
-                                      size: 50, color: Colors.grey.shade400),
+                                  : IconButton(
+                                      padding: EdgeInsets.zero,
+                                      onPressed: () => _pickImage(index),
+                                      icon: Icon(Icons.image,
+                                          size: 50,
+                                          color: Colors.grey.shade400),
+                                    ),
                               suffixIcon: SizedBox(
                                 width: 70,
                                 height: 40,

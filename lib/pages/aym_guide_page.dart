@@ -150,7 +150,14 @@ class _AymGuidePageState extends State<AymGuidePage> {
                   children: [
                     InkWell(
                       onTap: () {
-                        _pageController.jumpToPage(aymData.length - 1);
+                        if (_pageController.page == aymData.length - 1) {
+                          Navigator.pop(context);
+                        } else {
+                          _pageController.jumpToPage(aymData.length - 1);
+                        }
+                      },
+                      onDoubleTap: () {
+                        Navigator.pop(context);
                       },
                       child: const Padding(
                         padding: EdgeInsets.all(8.0),
