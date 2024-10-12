@@ -3,9 +3,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:motion_tab_bar/MotionTabBar.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:proje1/data/database.dart';
-import 'package:proje1/model/items.dart';
-import 'package:proje1/pages/add_item_page.dart';
+import 'package:Tablify/data/database.dart';
+import 'package:Tablify/model/items.dart';
+import 'package:Tablify/pages/add_item_page.dart';
 import 'package:share_plus/share_plus.dart';
 import '../navigation/item_list.wiev.dart';
 import 'dart:convert';
@@ -27,6 +27,7 @@ class _HomePageState extends State<HomePage>
   List<Item> _data = [];
   Map<String, bool> _localExpandedStates = {};
   late TabController _tabController;
+  int _selectedIndexTab = 0;
 
   @override
   void initState() {
@@ -97,7 +98,8 @@ class _HomePageState extends State<HomePage>
     final directory = await getApplicationDocumentsDirectory();
     String formattedDate =
         DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
-    final file = File('${directory.path}/data_export_$formattedDate.bin');
+    final file =
+        File('${directory.path}/Tablify_dataExport_$formattedDate.bin');
     await file.writeAsBytes(compressedData!);
     await Share.shareXFiles([XFile(file.path)],
         text: 'Here is your data export');
@@ -316,8 +318,13 @@ class _HomePageState extends State<HomePage>
                           ),
                           onPressed: () => _toggleExpandCollapse(),
                           child: Text(
-                            _allExpanded ? 'Tümünü Daralt' : 'Tümünü Genişlet',
-                            style: const TextStyle(color: Colors.green),
+                            textAlign: TextAlign.left,
+                            _allExpanded
+                                ? 'Tümünü Daralt    '
+                                : 'Tümünü Genişlet',
+                            style: const TextStyle(
+                              color: Colors.green,
+                            ),
                           )),
                     ],
                   ),
@@ -335,39 +342,67 @@ class _HomePageState extends State<HomePage>
           ),
         ],
       ),
-      bottomNavigationBar: MotionTabBar(
-        initialSelectedTab: "Sil",
-        labels: const ["İçeri Aktar", "Dışarı Aktar", "Sil"],
-        icons: const [Icons.import_export, Icons.file_upload, Icons.delete],
-        tabSize: 50,
-        tabBarHeight: 55,
-        tabIconColor: Colors.green[200],
-        tabIconSize: 28.0,
-        tabIconSelectedSize: 26.0,
-        tabSelectedColor: Colors.green[300],
-        tabIconSelectedColor: Colors.white,
-        tabBarColor: Colors.green[50],
-        textStyle: const TextStyle(
-          fontSize: 12,
-          color: Colors.green,
-          fontWeight: FontWeight.w500,
+      bottomNavigationBar: Theme(
+        data: Theme.of(context).copyWith(
+          splashColor: Colors.green[100],
         ),
-        onTabItemSelected: (int index) {
-          setState(() {
-            _tabController.index = index;
-            switch (index) {
-              case 0:
-                _importData();
-                break;
-              case 1:
-                _exportData();
-                break;
-              case 2:
-                _deleteAllData();
-                break;
-            }
-          });
-        },
+        child: BottomNavigationBar(
+          backgroundColor: Colors.green[50],
+          selectedItemColor: Colors.green[300],
+          unselectedItemColor: Colors.green[200],
+          items: [
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green[200],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.import_export, color: Colors.white),
+              ),
+              label: 'İçeri Aktar',
+            ),
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green[200],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.file_upload, color: Colors.white),
+              ),
+              label: 'Dışarı Aktar',
+            ),
+            BottomNavigationBarItem(
+              icon: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green[200],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.delete, color: Colors.white),
+              ),
+              label: 'Sil',
+            ),
+          ],
+          currentIndex: _selectedIndexTab,
+          onTap: (index) {
+            setState(() {
+              _selectedIndexTab = index;
+              switch (index) {
+                case 0:
+                  _importData();
+                  break;
+                case 1:
+                  _exportData();
+                  break;
+                case 2:
+                  _deleteAllData();
+                  break;
+              }
+            });
+          },
+        ),
       ),
     );
   }
@@ -378,7 +413,7 @@ class _HomePageState extends State<HomePage>
       children: data.map<Widget>((Item item) {
         return Padding(
           padding: const EdgeInsets.only(
-              right: 2.0, left: 2.0, bottom: 10.0, top: 2.0),
+              right: 2.0, left: 2.0, bottom: 5.0, top: 2.0),
           child: ListItem(
             item: item,
             isGlobalExpanded: _allExpanded,

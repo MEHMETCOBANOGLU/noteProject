@@ -33,7 +33,7 @@ Future<void> copyImageToClipboard(
   } catch (e) {
     print("Error copying image: $e");
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      const SnackBar(
         backgroundColor: Colors.red,
         duration: Duration(seconds: 1),
         content: Text('Resim kopyalanırken bir hata oluştu.'),

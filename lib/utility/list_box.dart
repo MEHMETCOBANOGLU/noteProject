@@ -11,7 +11,7 @@ void showListBoxDialog(
     Function setState,
     Function(String) addNewOption,
     Function(int) removeOption) {
-  final ScrollController _scrollController = ScrollController();
+  final ScrollController scrollController = ScrollController();
 
   showDialog(
     barrierDismissible: true,
@@ -62,9 +62,9 @@ void showListBoxDialog(
                       child: Scrollbar(
                         trackVisibility: true,
                         thumbVisibility: true,
-                        controller: _scrollController,
+                        controller: scrollController,
                         child: ListView.builder(
-                          controller: _scrollController,
+                          controller: scrollController,
                           shrinkWrap: true,
                           itemCount: options.length,
                           itemBuilder: (BuildContext context, int idx) {
@@ -122,8 +122,8 @@ void showListBoxDialog(
                                 // Yeni eleman eklendikten sonra listenin en altına kaydır
                                 WidgetsBinding.instance
                                     .addPostFrameCallback((_) {
-                                  _scrollController.animateTo(
-                                    _scrollController.position.maxScrollExtent,
+                                  scrollController.animateTo(
+                                    scrollController.position.maxScrollExtent,
                                     duration: const Duration(milliseconds: 300),
                                     curve: Curves.easeOut,
                                   );

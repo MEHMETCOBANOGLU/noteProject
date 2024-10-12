@@ -1,4 +1,4 @@
-name: proje1
+name: Tablify
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -40,6 +40,7 @@ dependencies:
     sdk: flutter
   flutter_image_clipboard: ^1.0.0
   flutter_langdetect: ^0.0.2
+  flutter_launcher_icons: ^0.14.1
   get: ^4.6.6
   http: ^1.2.2
   image: ^4.2.0
@@ -63,6 +64,15 @@ dev_dependencies:
   flutter_lints: ^3.0.0
   flutter_test:
     sdk: flutter
+
+flutter_launcher_icons:
+  remove_alpha_ios: true
+  android: true
+  ios: true
+  image_path: "assets/logo.png"
+  adaptive_icon_foreground: "assets/logo_foreground.png"
+  splash_image: "assets/splash.png"
+  adaptive_icon_background: "#FFFFFF"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

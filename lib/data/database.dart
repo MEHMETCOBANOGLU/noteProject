@@ -1,7 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'dart:io';
-import 'package:proje1/model/items.dart';
+import 'package:Tablify/model/items.dart';
 import 'package:uuid/uuid.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:convert';
@@ -344,8 +344,8 @@ class SQLiteDatasource {
     }
   }
 
-  Future<void> createTables(Database _database) async {
-    await _database.execute('''
+  Future<void> createTables(Database database) async {
+    await database.execute('''
       CREATE TABLE IF NOT EXISTS options (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         option_text TEXT NOT NULL

@@ -1,7 +1,7 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
-import 'package:proje1/data/aym_data.dart';
-import 'package:proje1/pages/add_item_page.dart';
+import 'package:Tablify/data/aym_data.dart';
+import 'package:Tablify/pages/add_item_page.dart';
 
 //AYM bilgilendirme sayfasi
 
@@ -13,13 +13,13 @@ class AymGuidePage extends StatefulWidget {
 }
 
 class _AymGuidePageState extends State<AymGuidePage> {
-  PageController _pageController = PageController(initialPage: 0);
+  final PageController _pageController = PageController(initialPage: 0);
   int currentPage = 0;
 
   gotoNextPage() {
     if (currentPage + 1 < aymData.length) {
       _pageController.nextPage(
-          duration: Duration(milliseconds: 500), curve: Curves.easeIn);
+          duration: const Duration(milliseconds: 500), curve: Curves.easeIn);
     } else {
       Navigator.pop(context);
     }
@@ -143,7 +143,7 @@ class _AymGuidePageState extends State<AymGuidePage> {
                   },
                 ),
               ),
-              Container(
+              SizedBox(
                 width: double.maxFinite,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
