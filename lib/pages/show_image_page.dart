@@ -1,8 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:proje1/aym/isimDilVeSecenek_duzenleyici.dart';
-import 'package:proje1/model/items.dart';
+import 'package:Tablify/aym/isimDilVeSecenek_duzenleyici.dart';
+import 'package:Tablify/model/items.dart';
 
 class ShowImage extends StatefulWidget {
   final List<String> imagePaths;
@@ -78,7 +78,7 @@ class _ShowImageState extends State<ShowImage> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            duration: Duration(seconds: 1),
+            duration: const Duration(seconds: 1),
             backgroundColor: Colors.red,
             content: Text('Resim kopyalanırken hata oluştu: $e')),
       );
@@ -163,7 +163,7 @@ class _ShowImageState extends State<ShowImage> {
         ),
         actions: [
           Padding(
-            padding: EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(8.0),
             child: IconButton(
               icon: const Icon(Icons.copy),
 

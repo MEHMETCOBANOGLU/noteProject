@@ -1,10 +1,8 @@
-import 'package:get/get_connect/http/src/utils/utils.dart';
-import 'package:proje1/pages/aym_guide_page.dart';
+import 'package:Tablify/pages/aym_guide_page.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:proje1/data/database.dart';
+import 'package:Tablify/data/database.dart';
 import 'package:json2yaml/json2yaml.dart';
-import 'package:image/image.dart' as img;
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import '../utility/list_box.dart';

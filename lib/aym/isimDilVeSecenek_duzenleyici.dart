@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart';
-import 'package:proje1/model/items.dart';
-import 'package:proje1/utility/image_copy.dart';
+import 'package:Tablify/model/items.dart';
+import 'package:Tablify/utility/image_copy.dart';
 
 // ... Diğer importlar
 Future<void> _copyText(BuildContext context, String text) async {
@@ -89,7 +89,7 @@ Future<void> showAllTagsEditDialog(
 ) async {
   String text = item.expandedValue[index];
   Map<String, TextEditingController> controllers = {};
-  late bool isTextStyle = false;
+  late bool isTextStyle = true;
   String? imgPath;
 
   // Kontrolörleri başlat
@@ -124,126 +124,218 @@ Future<void> showAllTagsEditDialog(
                     TextStyle(fontStyle: FontStyle.italic, color: Colors.green),
               ),
             ),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                            onPressed: () {
-                              setState(() {
-                                isTextStyle = !isTextStyle;
-                              });
-                            },
-                            child: isTextStyle
-                                ? Text("Metin")
-                                : Text("Kaynak Metin")),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        isTextStyle
-                            ? getColoredDisplayText(text)
-                            : Text(
+            content: SingleChildScrollView(
+              child: Container(
+                width: double.maxFinite,
+                child: DefaultTabController(
+                  length: 2,
+                  initialIndex: isTextStyle ? 0 : 1,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TabBar(
+                        indicatorColor: Colors.green,
+                        labelColor: Colors.green,
+                        unselectedLabelColor: Colors.grey,
+                        onTap: (int index) {
+                          setState(() {
+                            isTextStyle = index == 0;
+                          });
+                        },
+                        tabs: const [
+                          Tab(text: 'Metin'),
+                          Tab(text: 'Kaynak Metin'),
+                        ],
+                      ),
+                      SizedBox(
+                        height: 10,
+                      ),
+                      Container(
+                        height: 60,
+                        child: TabBarView(
+                          children: [
+                            SingleChildScrollView(
+                              child: getColoredDisplayText(text),
+                            ),
+                            SingleChildScrollView(
+                              child: Text(
                                 text,
                                 style: const TextStyle(color: Colors.black),
                               ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Etiketlere göre input alanlarını dinamik olarak oluştur
-                    ...tagList.map((tag) {
-                      String key = tag['variable'];
-                      String? value = tag['value'];
-
-                      // 'Seçenekler' için özel işlem
-                      if (key == 'Seçenekler') {
-                        List<String> options = value != null && value.isNotEmpty
-                            ? value.split('|')
-                            : [];
-                        String selectedOption = controllers[key]?.text ?? '';
-
-                        return Column(
-                          children: [
-                            Text(
-                              "$key'i Güncelle:",
-                              style: TextStyle(
-                                  fontSize: 16, color: Colors.green[400]),
                             ),
-                            const SizedBox(height: 10),
-                            if (options.isNotEmpty)
-                              ConstrainedBox(
-                                constraints:
-                                    const BoxConstraints(maxHeight: 200),
-                                child: Scrollbar(
-                                  trackVisibility: true,
-                                  child: ListView.builder(
-                                    itemCount: options.length,
-                                    shrinkWrap: true,
-                                    itemBuilder: (context, index) {
-                                      return RadioListTile<String>(
-                                        activeColor: Colors.green,
-                                        title: Text(options[index]),
-                                        value: options[index],
-                                        groupValue: selectedOption,
-                                        onChanged: (String? newValue) {
-                                          setState(() {
-                                            selectedOption = newValue!;
-                                            controllers[key]?.text =
-                                                selectedOption;
-                                          });
-                                        },
-                                      );
-                                    },
-                                  ),
-                                ),
-                              )
-                            else
-                              TextField(
-                                decoration: InputDecoration(
-                                  hintText: controllers[key]?.text,
-                                  hintStyle:
-                                      const TextStyle(color: Colors.black54),
-                                ),
-                                onChanged: (value) {
-                                  setState(() {
-                                    controllers[key]?.text = value;
-                                  });
-                                },
-                              ),
                           ],
-                        );
-                      }
-                      // 'IMG' için özel işlem
-                      else if (key == 'IMG') {
-                        String? imgValue = controllers[key]?.text;
-                        // String? imgPath;
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
-                        // Dosyanın mevcut olup olmadığını kontrol edelim
-                        bool fileExists =
-                            imgValue != null && File(imgValue).existsSync();
+                      // Etiketlere göre input alanlarını dinamik olarak oluştur
+                      ...tagList.map((tag) {
+                        String key = tag['variable'];
+                        String? value = tag['value'];
 
-                        return Column(
-                          children: [
-                            if (key == 'IMG' &&
-                                value != null &&
-                                value.isNotEmpty)
+                        // 'Seçenekler' için özel işlem
+                        if (key == 'Seçenekler') {
+                          List<String> options =
+                              value != null && value.isNotEmpty
+                                  ? value.split('|')
+                                  : [];
+                          String selectedOption = controllers[key]?.text ?? '';
+
+                          return Column(
+                            children: [
                               Text(
-                                // "$key'i Güncelle:",
-                                "Resim Değerini Güncelle:",
+                                "$key'i Güncelle:",
                                 style: TextStyle(
                                     fontSize: 16, color: Colors.green[400]),
                               ),
-                            const SizedBox(height: 10),
-                            if (key == 'IMG' &&
-                                value != null &&
-                                value.isNotEmpty)
+                              const SizedBox(height: 10),
+                              if (options.isNotEmpty)
+                                ConstrainedBox(
+                                  constraints:
+                                      const BoxConstraints(maxHeight: 200),
+                                  child: Scrollbar(
+                                    trackVisibility: true,
+                                    child: ListView.builder(
+                                      itemCount: options.length,
+                                      shrinkWrap: true,
+                                      itemBuilder: (context, index) {
+                                        return RadioListTile<String>(
+                                          activeColor: Colors.green,
+                                          title: Text(options[index]),
+                                          value: options[index],
+                                          groupValue: selectedOption,
+                                          onChanged: (String? newValue) {
+                                            setState(() {
+                                              selectedOption = newValue!;
+                                              controllers[key]?.text =
+                                                  selectedOption;
+                                            });
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                )
+                              else
+                                TextField(
+                                  decoration: InputDecoration(
+                                    hintText: controllers[key]?.text,
+                                    hintStyle:
+                                        const TextStyle(color: Colors.black54),
+                                  ),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      controllers[key]?.text = value;
+                                    });
+                                  },
+                                ),
+                            ],
+                          );
+                        }
+                        // 'IMG' için özel işlem
+                        else if (key == 'IMG') {
+                          String? imgValue = controllers[key]?.text;
+                          // String? imgPath;
+
+                          // Dosyanın mevcut olup olmadığını kontrol edelim
+                          bool fileExists =
+                              imgValue != null && File(imgValue).existsSync();
+
+                          return Column(
+                            children: [
+                              if (key == 'IMG' &&
+                                  value != null &&
+                                  value.isNotEmpty)
+                                Text(
+                                  // "$key'i Güncelle:",
+                                  "Resim Değerini Güncelle:",
+                                  style: TextStyle(
+                                      fontSize: 16, color: Colors.green[400]),
+                                ),
+                              const SizedBox(height: 10),
+                              if (key == 'IMG' &&
+                                  value != null &&
+                                  value.isNotEmpty)
+                                TextField(
+                                  decoration: InputDecoration(
+                                    hintText: controllers[key]?.text,
+                                    hintStyle:
+                                        const TextStyle(color: Colors.black54),
+                                  ),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      controllers[key]?.text = value;
+                                    });
+                                  },
+                                ),
+                              const SizedBox(height: 10),
+                              Text(
+                                // "$key'i Güncelle:",
+                                "Resmi Güncelle:",
+                                style: TextStyle(
+                                    fontSize: 16, color: Colors.green[400]),
+                              ),
+                              const SizedBox(height: 10),
+                              Container(
+                                height: 150,
+                                width: 150,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                ),
+                                child: imgPath != null && imgPath!.isNotEmpty
+                                    ? Image.file(
+                                        File(imgPath!),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : IconButton(
+                                        onPressed: () async {
+                                          final XFile? image =
+                                              await picker.pickImage(
+                                                  source: ImageSource.gallery);
+                                          if (image != null) {
+                                            setState(() {
+                                              imgPath = image.path;
+                                            });
+                                          }
+                                        },
+                                        icon: const Icon(
+                                            Icons.file_download_outlined),
+                                        iconSize: 100,
+                                        color: Colors.grey,
+                                      ),
+                              ),
+                              const SizedBox(height: 10),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green[50],
+                                ),
+                                onPressed: () async {
+                                  final XFile? image = await picker.pickImage(
+                                      source: ImageSource.gallery);
+                                  if (image != null) {
+                                    setState(() {
+                                      imgPath = image.path;
+                                    });
+                                  }
+                                },
+                                child: const Text('Resim Seç',
+                                    style: TextStyle(
+                                        color: Colors.grey,
+                                        fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(height: 10),
+                            ],
+                          );
+                        }
+                        // Diğer etiketler için
+                        else {
+                          return Column(
+                            children: [
+                              Text(
+                                "$key'i Güncelle:",
+                                style: TextStyle(
+                                    fontSize: 16, color: Colors.green[400]),
+                              ),
                               TextField(
                                 decoration: InputDecoration(
                                   hintText: controllers[key]?.text,
@@ -256,92 +348,13 @@ Future<void> showAllTagsEditDialog(
                                   });
                                 },
                               ),
-                            const SizedBox(height: 10),
-                            Text(
-                              // "$key'i Güncelle:",
-                              "Resmi Güncelle:",
-                              style: TextStyle(
-                                  fontSize: 16, color: Colors.green[400]),
-                            ),
-                            const SizedBox(height: 10),
-                            Container(
-                              height: 150,
-                              width: 150,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                              ),
-                              child: imgPath != null && imgPath!.isNotEmpty
-                                  ? Image.file(
-                                      File(imgPath!),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : IconButton(
-                                      onPressed: () async {
-                                        final XFile? image =
-                                            await picker.pickImage(
-                                                source: ImageSource.gallery);
-                                        if (image != null) {
-                                          setState(() {
-                                            imgPath = image.path;
-                                          });
-                                        }
-                                      },
-                                      icon: const Icon(
-                                          Icons.file_download_outlined),
-                                      iconSize: 100,
-                                      color: Colors.grey,
-                                    ),
-                            ),
-                            const SizedBox(height: 10),
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green[50],
-                              ),
-                              onPressed: () async {
-                                final XFile? image = await picker.pickImage(
-                                    source: ImageSource.gallery);
-                                if (image != null) {
-                                  setState(() {
-                                    imgPath = image.path;
-                                  });
-                                }
-                              },
-                              child: const Text('Resim Seç',
-                                  style: TextStyle(
-                                      color: Colors.grey,
-                                      fontWeight: FontWeight.bold)),
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                        );
-                      }
-// Diğer etiketler için
-                      else {
-                        return Column(
-                          children: [
-                            Text(
-                              "$key'i Güncelle:",
-                              style: TextStyle(
-                                  fontSize: 16, color: Colors.green[400]),
-                            ),
-                            TextField(
-                              decoration: InputDecoration(
-                                hintText: controllers[key]?.text,
-                                hintStyle:
-                                    const TextStyle(color: Colors.black54),
-                              ),
-                              onChanged: (value) {
-                                setState(() {
-                                  controllers[key]?.text = value;
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                        );
-                      }
-                    }).toList(),
-                  ],
+                              const SizedBox(height: 10),
+                            ],
+                          );
+                        }
+                      }).toList(),
+                    ],
+                  ),
                 ),
               ),
             ),

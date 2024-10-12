@@ -1,8 +1,8 @@
 import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:proje1/utility/list_box.dart';
+import 'package:Tablify/utility/list_box.dart';
 import 'package:json2yaml/json2yaml.dart';
-import 'package:proje1/model/items.dart';
+import 'package:Tablify/model/items.dart';
 import 'package:image/image.dart' as img;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -276,11 +276,11 @@ class _EditItemPageState extends State<EditItemPage> {
     });
 
     // Scroll to the new item and focus it
-    Future.delayed(Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 100), () {
       _focusNodes.last.requestFocus();
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
-        duration: Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
     });
@@ -600,7 +600,7 @@ class _EditItemPageState extends State<EditItemPage> {
           child: Text(widget.item.headerValue),
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
             Navigator.of(context).pop("pop");
           },

@@ -2,9 +2,9 @@ import 'package:device_preview/device_preview.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
-import 'package:proje1/const/colors.dart';
-import 'package:proje1/data/database.dart';
-import 'package:proje1/pages/home_page.dart';
+import 'package:Tablify/const/colors.dart';
+import 'package:Tablify/data/database.dart';
+import 'package:Tablify/pages/home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
