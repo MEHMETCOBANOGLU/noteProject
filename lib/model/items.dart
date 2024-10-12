@@ -4,12 +4,14 @@ class Item {
     required this.id,
     required this.expandedValue,
     required this.headerValue,
+    required this.tabId,
     this.isExpanded = false,
     this.subtitle,
     this.imageUrls,
   });
 
   String id;
+  String tabId;
   List<String> expandedValue;
   List<String>? imageUrls;
   String headerValue;
@@ -28,16 +30,20 @@ class Item {
     };
   }
 
-  // Map'ten bir Item objesi oluşturma fonksiyonu
+  // Map'ten bir Item objesi oluşturma fonksiyonu json to ıtem
   factory Item.fromMap(Map<String, dynamic> map) {
     return Item(
-      id: map['id'],
-      expandedValue: List<String>.from(map['expandedValue']),
+      id: map['id'] ?? '', // Eğer id null ise varsayılan boş string kullan
+      tabId: map['tabId'] ?? '', // Eğer tabId null ise boş string kullan
+      expandedValue:
+          List<String>.from(map['expandedValue'] ?? []), // Boş liste kontrolü
       imageUrls:
           map['imageUrls'] != null ? List<String>.from(map['imageUrls']) : null,
-      headerValue: map['headerValue'],
-      subtitle: map['subtitle'],
-      isExpanded: map['isExpanded'] ?? false,
+      headerValue: map['headerValue'] ??
+          '', // Eğer headerValue null ise boş string kullan
+      subtitle:
+          map['subtitle'], // Bu alan null olabilir, o yüzden kontrol gerekmez
+      isExpanded: map['isExpanded'] ?? false, // Null durumunda false değeri ata
     );
   }
 }

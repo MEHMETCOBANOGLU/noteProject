@@ -13,7 +13,8 @@ import 'dart:convert';
 import 'dart:io';
 
 class AddItemPage extends StatefulWidget {
-  const AddItemPage({super.key});
+  final String tabId;
+  const AddItemPage({super.key, required this.tabId});
 
   @override
   _AddItemPageState createState() => _AddItemPageState();
@@ -68,8 +69,8 @@ class _AddItemPageState extends State<AddItemPage> {
           _itemControllers.map((controller) => controller.text).toList();
       List<String> imagePaths = _imagePaths.map((path) => path ?? "").toList();
 
-      bool noteExists =
-          await _sqliteDatasource.noteExistsWithTitle(_titleController.text);
+      bool noteExists = await _sqliteDatasource.noteExistsWithTitle(
+          _titleController.text, widget.tabId);
 
       if (noteExists) {
         bool overwriteConfirmed = await _showOverwriteDialog();
@@ -86,6 +87,7 @@ class _AddItemPageState extends State<AddItemPage> {
           subtitle: _subtitleController.text,
           expandedValue: items,
           imageUrls: imagePaths, // Dosya yolu kaydediliyor
+          tabId: widget.tabId,
         ),
       );
 
