@@ -103,12 +103,15 @@ class _EditItemPageState extends State<EditItemPage> {
       }
     }
 
-    bool success = await _sqliteDatasource.updateNote(
-      widget.item.id,
-      _titleController.text,
-      _subtitleController.text,
-      items,
-      imagePaths,
+    bool success = await _sqliteDatasource.addOrUpdateNote(
+      Item(
+        id: const Uuid().v4(),
+        headerValue: _titleController.text,
+        subtitle: _subtitleController.text,
+        expandedValue: items,
+        imageUrls: imagePaths, // Dosya yolu kaydediliyor
+        tabId: widget.item.tabId,
+      ),
     );
 
     if (success) {
@@ -540,6 +543,7 @@ class _EditItemPageState extends State<EditItemPage> {
           _itemControllers.map((controller) => controller.text).toList(),
       imageUrls: List<String>.from(_existingImagePaths),
       isExpanded: false,
+      tabId: widget.item.tabId,
     );
 
     bool success = await _sqliteDatasource.addOrUpdateNote(clonedItem);
@@ -565,7 +569,8 @@ class _EditItemPageState extends State<EditItemPage> {
 //Klonlaanan tablolar için title üretme
   Future<String> _getClonedTitle(String originalTitle) async {
     // Veritabanından mevcut öğeleri alın
-    List<Item> existingItems = await _sqliteDatasource.getNotes();
+    List<Item> existingItems =
+        await _sqliteDatasource.getNotes(widget.item.tabId);
 
     String clonedTitle;
 

@@ -6,6 +6,8 @@ import 'package:uuid/uuid.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:convert';
 
+import '../model/TabItem.dart';
+
 class SQLiteDatasource {
   static final SQLiteDatasource _instance = SQLiteDatasource._internal();
   late Database _database;
@@ -25,7 +27,7 @@ class SQLiteDatasource {
 
       _database = await openDatabase(
         path,
-        version: 2, // Yeni tablo eklediğimiz için versiyonu artırıyoruz
+        version: 4, // Yeni tablo eklediğimiz için versiyonu artırıyoruz
         onCreate: (db, version) async {
           print("Creating tables...");
           await db.execute('''
@@ -37,6 +39,7 @@ class SQLiteDatasource {
             imageUrls BLOB,
             isExpanded INTEGER,
             "order" INTEGER
+            tabId TEXT
           )
         ''');
 
@@ -47,6 +50,14 @@ class SQLiteDatasource {
             option_text TEXT NOT NULL
           )
         ''');
+
+          // Yeni `tabs` tablosunu oluştur
+          await db.execute('''
+  CREATE TABLE IF NOT EXISTS tabs (
+    id TEXT PRIMARY KEY,
+    name TEXT
+  )
+''');
 
           // Varsayılan seçenekleri ekleyin
           await db.insert('options', {
@@ -67,14 +78,36 @@ class SQLiteDatasource {
 
           print("Tables and default options created successfully");
         },
+
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
+            // Version 2 changes
             await db.execute('''
-            CREATE TABLE IF NOT EXISTS options (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              option_text TEXT NOT NULL
-            )
-          ''');
+    CREATE TABLE IF NOT EXISTS options (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      option_text TEXT NOT NULL
+    )
+  ''');
+          }
+          if (oldVersion < 3) {
+            // 'tabId' kolonunu ekliyoruz
+            await db.execute('ALTER TABLE notes ADD COLUMN tabId TEXT');
+            // Mevcut notlar için varsayılan 'tab1' değerini atıyoruz
+            await db.execute('UPDATE notes SET tabId = ?', ['tab1']);
+          }
+
+          if (oldVersion < 4) {
+            await db.execute('''
+    CREATE TABLE IF NOT EXISTS tabs (
+      id TEXT PRIMARY KEY,
+      name TEXT
+    )
+  ''');
+            // Mevcut notlarınız varsa ve 'tabId' kolonu eklenmemişse, eski notlara varsayılan bir 'tabId' atayın
+            await db.execute('UPDATE notes SET tabId = ?', ['tab1']);
+
+            // Varsayılan 'Tab 1' sekmesini oluşturun
+            await db.insert('tabs', {'id': 'tab1', 'name': 'Tab 1'});
           }
         },
       );
@@ -111,12 +144,13 @@ class SQLiteDatasource {
         'id': uuid,
         'title': item.headerValue,
         'subtitle': item.subtitle,
-        'items': item.expandedValue.join('||'), // Listeyi string'e çeviriyoruz
+        'items': item.expandedValue.join('||'),
         'imageUrls': item.imageUrls?.join('||') ?? '',
         'isExpanded': item.isExpanded ? 1 : 0,
         'order': order,
+        'tabId': item.tabId, // 'tabId'yi ekliyoruz
       });
-      print("Note added successfully"); // Veri başarıyla eklendi
+      print("Note added successfully");
       return true;
     } catch (e) {
       print("Error adding note: $e");
@@ -125,15 +159,17 @@ class SQLiteDatasource {
   }
 
   // Notları almak için fonksiyon
-  Future<List<Item>> getNotes() async {
+  Future<List<Item>> getNotes(String tabId) async {
     try {
       final List<Map<String, dynamic>> maps = await _database.query(
         'notes',
+        where: 'tabId = ?',
+        whereArgs: [tabId],
         orderBy: '"order"',
       );
 
       if (maps.isEmpty) {
-        print("No data found in database.");
+        print("No data found in database for tab $tabId.");
         return [];
       }
 
@@ -141,22 +177,24 @@ class SQLiteDatasource {
         return Item(
           id: maps[i]['id'],
           headerValue: maps[i]['title'],
-          expandedValue: maps[i]['items'].split('||'), // '||' ile ayırıyoruz
+          expandedValue: maps[i]['items'].split('||'),
           subtitle: maps[i]['subtitle'],
-          imageUrls: maps[i]['imageUrls']
-              .split('||'), // imageUrls için de '||' kullanıyoruz
+          imageUrls: maps[i]['imageUrls'] != ''
+              ? maps[i]['imageUrls'].split('||')
+              : [],
           isExpanded: maps[i]['isExpanded'] == 1,
+          tabId: maps[i]['tabId'], // 'tabId'yi ekliyoruz
         );
       });
     } catch (e) {
-      print("Error fetching notes: $e");
+      print("Error fetching notes for tab $tabId: $e");
       return [];
     }
   }
 
   // Notu güncelleme fonksiyonu
   Future<bool> updateNote(String id, String title, String subtitle,
-      List<String> items, List<String> imageUrls) async {
+      List<String> items, List<String> imageUrls, String tabId) async {
     try {
       await _database.update(
         'notes',
@@ -165,6 +203,7 @@ class SQLiteDatasource {
           'subtitle': subtitle,
           'items': items.join('||'),
           'imageUrls': imageUrls.join('||'),
+          'tabId': tabId, // Include tabId
         },
         where: 'id = ?',
         whereArgs: [id],
@@ -232,6 +271,22 @@ class SQLiteDatasource {
     }
   }
 
+  // Tüm sekmeleri silme fonksiyonu
+  Future<void> deleteAllTabs() async {
+    try {
+      await _database.delete('tabs');
+      print("All tabs deleted successfully.");
+    } catch (e) {
+      print("Error deleting all tabs: $e");
+    }
+  }
+
+// Tüm veritabanı elemanlarını (sekme ve notlar) silme fonksiyonu
+  Future<void> deleteAllData() async {
+    await deleteAllItems();
+    await deleteAllTabs();
+  }
+
   // Belirli bir item'ı silme fonksiyonu
   Future<bool> deleteItem(String noteId, int itemIndex) async {
     try {
@@ -279,48 +334,48 @@ class SQLiteDatasource {
   }
 
   // Aynı başlıkta bir not olup olmadığını kontrol eden fonksiyon
-  Future<bool> noteExistsWithTitle(String title) async {
+  Future<bool> noteExistsWithTitle(String title, String tabId) async {
     try {
       List<Map<String, dynamic>> existingNotes = await _database.query(
         'notes',
-        where: 'title = ?',
-        whereArgs: [title],
+        where: 'title = ? AND tabId = ?',
+        whereArgs: [title, tabId],
       );
       return existingNotes.isNotEmpty;
     } catch (e) {
       print("Error checking for existing note: $e");
-      return false; // Varsayılan olarak false döner, eğer bir hata oluşursa
+      return false;
     }
   }
 
   Future<bool> addOrUpdateNote(Item item) async {
     try {
-      // Önce mevcut bir öğe var mı kontrol ediyoruz (title veya id üzerinden)
+      // Check if a note with the same title and tabId exists
       List<Map<String, dynamic>> existingNotes = await _database.query(
         'notes',
-        where: 'title = ?',
-        whereArgs: [item.headerValue],
+        where: 'title = ? AND tabId = ?',
+        whereArgs: [item.headerValue, item.tabId],
       );
 
       if (existingNotes.isNotEmpty) {
-        // Eğer aynı başlığa sahip bir öğe varsa, güncelleriz
+        // Update existing note
         await _database.update(
           'notes',
           {
             'title': item.headerValue,
             'subtitle': item.subtitle,
-            'items': item.expandedValue
-                .join('||'), // Listeyi '||' ile string'e çeviriyoruz
-            'imageUrls': item.imageUrls?.join('||') ??
-                '', // Aynı işlemi imageUrls için de yapıyoruz
+            'items': item.expandedValue.join('||'),
+            'imageUrls': item.imageUrls?.join('||') ?? '',
+            'isExpanded': item.isExpanded ? 1 : 0,
+            'tabId': item.tabId,
           },
-          where: 'title = ?',
-          whereArgs: [item.headerValue],
+          where: 'title = ? AND tabId = ?',
+          whereArgs: [item.headerValue, item.tabId],
         );
         print("Note updated successfully");
         return true;
       } else {
-        // Aynı başlığa sahip öğe yoksa, yeni bir not ekleriz
+        // Insert new note
         var uuid = const Uuid().v4();
         var order = DateTime.now().millisecondsSinceEpoch;
 
@@ -328,12 +383,11 @@ class SQLiteDatasource {
           'id': uuid,
           'title': item.headerValue,
           'subtitle': item.subtitle,
-          'items':
-              item.expandedValue.join('||'), // Listeyi string'e çeviriyoruz
-          'imageUrls': item.imageUrls?.join('||') ??
-              '', // imageUrls için de '||' kullanıyoruz
+          'items': item.expandedValue.join('||'),
+          'imageUrls': item.imageUrls?.join('||') ?? '',
           'isExpanded': item.isExpanded ? 1 : 0,
           'order': order,
+          'tabId': item.tabId,
         });
         print("Note added successfully");
         return true;
@@ -364,5 +418,37 @@ class SQLiteDatasource {
     return List.generate(maps.length, (i) {
       return maps[i]['option_text'] as String;
     });
+  }
+
+  // Sekme ekleme fonksiyonu
+  Future<void> addTab(TabItem tabItem) async {
+    await _database.insert('tabs', tabItem.toMap());
+  }
+
+  // Sekmeleri alma fonksiyonu
+  Future<List<TabItem>> getTabs() async {
+    final List<Map<String, dynamic>> maps = await _database.query('tabs');
+    return List.generate(maps.length, (i) {
+      return TabItem.fromMap(maps[i]);
+    });
+  }
+
+  // Sekme silme fonksiyonu
+  Future<void> deleteTab(String id) async {
+    await _database.delete('tabs', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // Belirli bir sekmeye ait tüm notları silme fonksiyonu
+  Future<void> deleteItemsByTabId(String tabId) async {
+    try {
+      await _database.delete(
+        'notes',
+        where: 'tabId = ?',
+        whereArgs: [tabId],
+      );
+      print("All items deleted successfully for tab $tabId.");
+    } catch (e) {
+      print("Error deleting items for tab $tabId: $e");
+    }
   }
 }
