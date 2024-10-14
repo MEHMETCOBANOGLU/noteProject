@@ -255,9 +255,9 @@ class _ListItemState extends State<ListItem> {
                                     //     context, widget.item.expandedValue[idx]
                                     //     );
                                   },
-                                  child: Icon(Icons.image,
-                                      size: 50, color: Colors.grey.shade400),
-                                ),
+                                  child: const SizedBox()
+                                  // size: 50, color: Colors.grey.shade400),
+                                  ),
                         ),
                         visualDensity: VisualDensity.compact,
                         dense: true,
