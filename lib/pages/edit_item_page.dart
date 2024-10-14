@@ -3,13 +3,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:Tablify/utility/list_box.dart';
 import 'package:json2yaml/json2yaml.dart';
 import 'package:Tablify/model/items.dart';
-import 'package:image/image.dart' as img;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import 'package:yaml/yaml.dart';
 import '../data/database.dart';
-import 'dart:convert';
 import 'dart:io';
 
 class EditItemPage extends StatefulWidget {

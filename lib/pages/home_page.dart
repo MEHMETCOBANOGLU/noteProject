@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:Tablify/data/database.dart';
 import 'package:Tablify/model/items.dart';
 import 'package:Tablify/pages/add_item_page.dart';
+import 'package:reorderables/reorderables.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 import '../model/TabItem.dart';
@@ -47,36 +48,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   List<TabData> _tabDataList = [];
   bool _isLoading = true;
 
-  // @override
-  // void initState() {
-  //   super.initState();
-
-  //    _loadTabs();
-
-  //   // Initialize tabs only if they are empty
-  //   if (_tabs.isEmpty) {
-  //     _tabs = [Tab(text: 'Tab 1')];
-  //     _tabDataList = [
-  //       TabData(data: [], localExpandedStates: {}, allExpanded: true),
-  //     ];
-  //   }
-
-  //   _tabController = TabController(length: _tabs.length, vsync: this);
-  //   _loadData(0); // Load data for Tab 1
-
-  //   _tabController.addListener(() {
-  //     if (_tabController.indexIsChanging) {
-  //       _loadData(_tabController.index);
-  //     }
-  //   });
-  // }
+  List<ScrollController> _scrollControllers = [];
 
   @override
   void initState() {
     super.initState();
     _loadTabs();
+    _scrollControllers = [];
   }
 
+  // _loadTabs fonksiyonunun güncellenmiş hali
   Future<void> _loadTabs() async {
     await _sqliteDatasource.init();
     List<TabItem> tabs = await _sqliteDatasource.getTabs();
@@ -97,10 +78,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return TabData(data: [], localExpandedStates: {}, allExpanded: true);
       });
 
-      // TabController'ı _tabs.length + 1 olarak başlatıyoruz
-      _tabController = TabController(length: _tabs.length + 1, vsync: this);
+      // TabController'ı başlatıyoruz
+      _tabController = TabController(length: _tabs.length, vsync: this);
       _loadData(_tabController.index);
 
+      // TabController dinleyicisini ekliyoruz
       _tabController.addListener(() {
         if (_tabController.indexIsChanging) {
           if (_tabController.index == _tabs.length) {
@@ -108,11 +90,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             _addNewTab();
           } else {
             _loadData(_tabController.index);
+            setState(() {}); // Sekme vurgusunu güncelle
+          }
+        } else {
+          // Kullanıcı sekmeler arasında kaydırma yaptı
+          if (_tabController.index < _tabs.length) {
+            _loadData(_tabController.index);
+            setState(() {}); // Sekme vurgusunu güncelle
           }
         }
       });
 
       _isLoading = false; // Başlatma tamamlandı
+
+      _scrollControllers =
+          List.generate(_tabs.length, (index) => ScrollController());
     });
   }
 
@@ -153,28 +145,35 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _tabs.removeAt(index);
       _tabDataList.removeAt(index);
 
-      // Eski TabController'ı dispose ediyoruz
-      _tabController.dispose();
+      // İlgili ScrollController'ı kaldır ve serbest bırak
+      _scrollControllers[index].dispose();
+      _scrollControllers.removeAt(index);
 
-      // Yeni TabController oluşturuyoruz
-      _tabController = TabController(length: _tabs.length + 1, vsync: this);
-
-      _tabController.addListener(() {
-        if (_tabController.indexIsChanging) {
-          _loadData(_tabController.index);
-        }
-      });
-
-      // Kapatılan sekme son sekmeyse, bir önceki sekmeye git
-      if (index == _tabs.length) {
-        _selectedIndexTab = _tabs.length - 1;
-      } else {
-        // Kapatılan sekme ortadaysa, aynı indekste kal (bir sonraki sekmeye geç)
-        _selectedIndexTab = index;
+      // Yeni seçili index'i belirliyoruz
+      int currentIndex = _tabController.index;
+      if (currentIndex >= _tabs.length) {
+        currentIndex = _tabs.length - 1;
+        if (currentIndex < 0) currentIndex = 0;
       }
+
+      if (_tabs.isEmpty) {
+        // Tüm sekmeler kapatılmışsa varsayılan 'Tab 1' ekliyoruz
+        String id = 'tab1';
+        String name = 'Tab 1';
+        TabItem tabItem = TabItem(id: id, name: name);
+        _tabs.add(tabItem);
+        _tabDataList
+            .add(TabData(data: [], localExpandedStates: {}, allExpanded: true));
+        _sqliteDatasource.addTab(tabItem);
+        _scrollControllers
+            .add(ScrollController()); // Yeni ScrollController ekleniyor
+      }
+
+      // TabController'ı güncelliyoruz
+      _updateTabController(initialIndex: currentIndex);
     });
 
-    // Sekmeye doğrudan geçiş yapıyoruz (animasyonsuz)
+    // Yeni seçili sekmeye geçiş yapıyoruz
     _tabController.index = _selectedIndexTab;
   }
 
@@ -184,13 +183,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.didUpdateWidget(oldWidget);
 
     if (_tabController.length != _tabs.length) {
+      _tabController.removeListener(_tabControllerListener);
       _tabController.dispose();
-      _tabController = TabController(length: _tabs.length, vsync: this);
-      _tabController.addListener(() {
-        if (_tabController.indexIsChanging) {
-          _loadData(_tabController.index);
-        }
-      });
+      _tabController = TabController(
+        length: _tabs.length,
+        vsync: this,
+        initialIndex: _tabController.index.clamp(0, _tabs.length - 1),
+      );
+      _tabController.addListener(_tabControllerListener);
+      setState(() {});
+    }
+  }
+
+  void _tabControllerListener() {
+    if (_tabController.indexIsChanging) {
+      _loadData(_tabController.index);
     }
   }
 
@@ -206,20 +213,46 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
-  void _updateTabController() {
+  void _updateTabController({int? initialIndex}) {
+    int newIndex = initialIndex ?? _tabController.index;
+    if (newIndex >= _tabs.length) {
+      newIndex = _tabs.length - 1;
+      if (newIndex < 0) newIndex = 0;
+    }
+
+    _tabController.removeListener(_tabControllerListener);
     _tabController.dispose();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+
+    _tabController = TabController(
+      length: _tabs.length,
+      vsync: this,
+      initialIndex: newIndex,
+    );
+
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
-        _loadData(_tabController.index);
+        if (_tabController.index == _tabs.length) {
+          // '+' butonuna tıklandı, yeni sekme ekle
+          _addNewTab();
+        } else {
+          _loadData(_tabController.index);
+          setState(() {}); // Sekme vurgusunu güncelle
+        }
+      } else {
+        // Kullanıcı sekmeler arasında kaydırma yaptı
+        if (_tabController.index < _tabs.length) {
+          _loadData(_tabController.index);
+          setState(() {}); // Sekme vurgusunu güncelle
+        }
       }
     });
-    setState(() {});
+
+    setState(() {}); // TabController değişikliğini UI'ye bildir
   }
 
   void _addNewTab() async {
     int newTabIndex = _tabs.length + 1;
-    String id = Uuid().v4();
+    String id = const Uuid().v4();
     String name = 'Tab $newTabIndex';
     TabItem tabItem = TabItem(id: id, name: name);
 
@@ -229,22 +262,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _tabs.add(tabItem);
       _tabDataList
           .add(TabData(data: [], localExpandedStates: {}, allExpanded: true));
+      _scrollControllers
+          .add(ScrollController()); // Yeni ScrollController ekleniyor
 
-      // Eski TabController'ı dispose ediyoruz
-      _tabController.dispose();
-
-      // Yeni TabController oluşturuyoruz
-      _tabController = TabController(length: _tabs.length + 1, vsync: this);
-
-      _tabController.addListener(() {
-        if (_tabController.indexIsChanging) {
-          _loadData(_tabController.index);
-        }
-      });
-
-      // Yeni sekmeye geçiş yapıyoruz
-      _tabController.animateTo(_tabs.length - 1);
+      // TabController'ı güncelliyoruz
+      _updateTabController(initialIndex: _tabs.length - 1);
     });
+
+    // Yeni sekmeye geçiş yapıyoruz
+    _tabController.animateTo(_tabs.length - 1);
   }
 
   // Tüm öğeleri genişletiyoruz #expandall
@@ -285,6 +311,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    for (var controller in _scrollControllers) {
+      controller.dispose();
+    }
     _tabController.dispose();
     super.dispose();
   }
@@ -370,6 +399,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             tabId = Uuid().v4();
             TabItem newTab = TabItem(id: tabId, name: tabName);
             await _sqliteDatasource.addTab(newTab);
+            setState(() {
+              _tabs.add(newTab);
+              _tabDataList.add(TabData(
+                  data: [], localExpandedStates: {}, allExpanded: true));
+              _scrollControllers
+                  .add(ScrollController()); // Yeni ScrollController ekliyoruz
+            });
           }
 
           // İlgili sekmeye ait notları içeri aktar
@@ -522,19 +558,106 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
         // TabController'ı tekrar başlatıyoruz
         _tabController.dispose();
-        _tabController = TabController(length: _tabs.length + 1, vsync: this);
+        _tabController = TabController(
+          length: _tabs.length,
+          vsync: this,
+          initialIndex: 0,
+        );
 
-        _tabController.addListener(() {
-          if (_tabController.indexIsChanging) {
-            _loadData(_tabController.index);
-          }
-        });
+        _tabController.addListener(_tabControllerListener);
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Tüm veriler silindi.')),
       );
     }
+  }
+
+  void _onReorderTabs(int oldIndex, int newIndex) {
+    setState(() {
+      // Eğer yeniIndex, oldIndex'ten büyükse yeniIndex'i bir azaltmak gerekebilir
+      // çünkü kaldırma işlemi sonrasında liste kısalır
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+
+      // Sekmeyi ve ona ait veriyi listelerden kaldır ve yeni konuma ekle
+      final TabItem movedTab = _tabs.removeAt(oldIndex);
+      _tabs.insert(newIndex, movedTab);
+
+      final TabData movedTabData = _tabDataList.removeAt(oldIndex);
+      _tabDataList.insert(newIndex, movedTabData);
+
+      // ScrollController'ı da aynı şekilde yeniden sırala
+      final ScrollController movedScrollController =
+          _scrollControllers.removeAt(oldIndex);
+      _scrollControllers.insert(newIndex, movedScrollController);
+
+      // TabController'ı güncelle
+      _updateTabController(initialIndex: newIndex);
+    });
+  }
+
+  Future<void> _showRenameTabDialog(int index) async {
+    TextEditingController _textController =
+        TextEditingController(text: _tabs[index].name);
+
+    String? newName = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Sekme İsmini Değiştir'),
+          content: TextField(
+            controller: _textController,
+            decoration: const InputDecoration(
+              hintText: 'Yeni sekme ismi',
+            ),
+          ),
+          actions: <Widget>[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text(
+                    "İptal",
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+                ElevatedButton(
+                  child: Text(
+                    'Kaydet',
+                    style: TextStyle(
+                        color: Colors.green, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () {
+                    String inputName = _textController.text.trim();
+                    if (inputName.isNotEmpty) {
+                      Navigator.of(context).pop(inputName);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    if (newName != null && newName.isNotEmpty) {
+      _renameTab(index, newName);
+    }
+  }
+
+  void _renameTab(int index, String newName) async {
+    setState(() {
+      _tabs[index].name = newName;
+    });
+
+    // Veri tabanında sekme ismini güncelle
+    await _sqliteDatasource.updateTabName(_tabs[index].id, newName);
   }
 
   Widget _buildTabContent(int index) {
@@ -585,7 +708,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         onPressed: () => _toggleExpandCollapse(),
                         child: Text(
                           currentTabData.allExpanded
-                              ? 'Tümünü Daralt    '
+                              ? 'Tümünü Daralt'
                               : 'Tümünü Genişlet',
                           style: const TextStyle(
                             color: Colors.green,
@@ -598,6 +721,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
         Expanded(
           child: SingleChildScrollView(
+            controller: _scrollControllers[index],
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 5.0),
               child: _buildPanel(currentTabData),
@@ -642,9 +766,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text('Yükleniyor...'),
+          title: const Text('Yükleniyor...'),
         ),
-        body: Center(
+        body: const Center(
           child: CircularProgressIndicator(),
         ),
       );
@@ -661,92 +785,111 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
           )),
         ),
-        body: Column(
-          children: [
-            Container(
-              height: 50,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TabBar(
-                      controller: _tabController,
-                      isScrollable: true,
-                      labelColor: Colors.green,
-                      unselectedLabelColor: Colors.white,
-                      indicatorColor: Colors.green,
-                      labelPadding: const EdgeInsets.only(
-                          left: 3.0, right: 3.0, top: 5.0),
-                      tabAlignment:
-                          TabAlignment.start, // Sekmeler sol tarafa hizalanıyor
-                      splashFactory: NoSplash.splashFactory,
-                      tabs: [
-                        ..._tabs.map((tabItem) {
-                          return ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(15.0)),
+        body: Padding(
+          padding: const EdgeInsets.only(top: 5.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: 50,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ReorderableWrap(
+                    needsLongPressDraggable: false,
+                    spacing: 4.0,
+                    runSpacing: 4.0,
+                    direction: Axis.horizontal,
+                    onReorder: _onReorderTabs,
+                    children: _tabs.asMap().entries.map((entry) {
+                          int index = entry.key;
+                          TabItem tabItem = entry.value;
+                          return GestureDetector(
+                            key: ValueKey(tabItem.id),
+                            onTap: () {
+                              _tabController.animateTo(index);
+                            },
+                            onLongPress: () {
+                              // Sekmeye uzun basıldığında isim değiştirme dialogunu aç
+                              _showRenameTabDialog(index);
+                            },
                             child: Container(
-                              color: Colors.green[100],
-                              child: Tab(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Text(
-                                        tabItem.name,
-                                        textAlign: TextAlign.center,
-                                      ),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12.0, vertical: 5.0),
+                              decoration: BoxDecoration(
+                                color: _tabController.index == index
+                                    ? Colors.green[300] // Seçili sekmenin rengi
+                                    : Colors
+                                        .green[100], // Diğer sekmelerin rengi
+                                borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(
+                                        15.0)), // Köşe yuvarlama
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    tabItem.name,
+                                    style: TextStyle(
+                                      color: _tabController.index == index
+                                          ? Colors
+                                              .white // Seçili sekme metin rengi
+                                          : Colors
+                                              .black, // Diğer sekme metin rengi
                                     ),
-                                    SizedBox(width: 15),
-                                    if (_tabs.indexOf(tabItem) !=
-                                        0) // Tab 1 için çarpı işaretini gizliyoruz
-                                      GestureDetector(
-                                        onTap: () =>
-                                            _closeTab(_tabs.indexOf(tabItem)),
-                                        child: const Padding(
-                                          padding: EdgeInsets.all(8.0),
-                                          child: Icon(Icons.close, size: 16),
-                                        ),
-                                      )
-                                    else
-                                      SizedBox(
-                                        width:
-                                            24, // Çarpı ikonunun yerine boşluk ekliyoruz
+                                  ),
+                                  SizedBox(width: 10.0),
+                                  if (index != 0) // İlk sekme hariç 'X' göster
+                                    GestureDetector(
+                                      onTap: () {
+                                        // 'X' ikonuna tıklanırsa sekmeyi kapat
+                                        _closeTab(index);
+                                      },
+                                      child: Icon(
+                                        Icons.close,
+                                        size: 16.0,
+                                        color: _tabController.index == index
+                                            ? Colors
+                                                .white // Seçili sekme 'X' ikonu rengi
+                                            : Colors
+                                                .black, // Diğer sekme 'X' ikonu rengi
                                       ),
-                                  ],
-                                ),
+                                    )
+                                  else
+                                    const SizedBox(width: 16.0),
+                                ],
                               ),
                             ),
                           );
-                        }).toList(),
-                        // '+' butonu
-                        Tab(
-                          child: IconButton(
-                            icon: Icon(Icons.add, color: Colors.green),
-                            onPressed: _addNewTab,
+                        }).toList() +
+                        [
+                          GestureDetector(
+                            onTap: _addNewTab,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12.0, vertical: 5.0),
+                              decoration: const BoxDecoration(
+                                // color: Colors.green[100],
+                                borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(15.0)),
+                              ),
+                              child: const Icon(Icons.add, color: Colors.green),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
                   ),
-                ],
+                ),
               ),
-            ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  ..._tabs.asMap().entries.map((entry) {
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: _tabs.asMap().entries.map((entry) {
                     int index = entry.key;
-                    return _buildTabContent(index);
+                    return _buildTabContent(index); // Sekme içerikleri
                   }).toList(),
-                  // '+' butonu için boş sayfa
-                  Container(),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         bottomNavigationBar: Theme(
           data: Theme.of(context).copyWith(
@@ -760,34 +903,34 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             items: [
               BottomNavigationBarItem(
                 icon: Container(
-                  padding: EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.green[200],
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.import_export, color: Colors.white),
+                  child: const Icon(Icons.import_export, color: Colors.white),
                 ),
                 label: 'İçeri Aktar',
               ),
               BottomNavigationBarItem(
                 icon: Container(
-                  padding: EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.green[200],
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.file_upload, color: Colors.white),
+                  child: const Icon(Icons.file_upload, color: Colors.white),
                 ),
                 label: 'Dışarı Aktar',
               ),
               BottomNavigationBarItem(
                 icon: Container(
-                  padding: EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.green[200],
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.delete, color: Colors.white),
+                  child: const Icon(Icons.delete, color: Colors.white),
                 ),
                 label: 'Sil',
               ),

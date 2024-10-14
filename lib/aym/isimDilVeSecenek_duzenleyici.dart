@@ -12,7 +12,7 @@ Future<void> _copyText(BuildContext context, String text) async {
   Clipboard.setData(ClipboardData(text: displayText));
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      duration: Duration(seconds: 1),
+      duration: const Duration(seconds: 1),
       content: Text(
         text.length > 30
             ? '${displayText.substring(0, 30)}... panoya kopyalandı!'
@@ -125,7 +125,7 @@ Future<void> showAllTagsEditDialog(
               ),
             ),
             content: SingleChildScrollView(
-              child: Container(
+              child: SizedBox(
                 width: double.maxFinite,
                 child: DefaultTabController(
                   length: 2,
@@ -147,10 +147,10 @@ Future<void> showAllTagsEditDialog(
                           Tab(text: 'Kaynak Metin'),
                         ],
                       ),
-                      SizedBox(
+                      const SizedBox(
                         height: 10,
                       ),
-                      Container(
+                      SizedBox(
                         height: 60,
                         child: TabBarView(
                           children: [
@@ -352,7 +352,7 @@ Future<void> showAllTagsEditDialog(
                             ],
                           );
                         }
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ),
@@ -423,7 +423,7 @@ Future<void> showAllTagsEditDialog(
 
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          duration: Duration(seconds: 1),
+                          duration: const Duration(seconds: 1),
                           content: Text(
                             displayText.length > 30
                                 ? '${displayText.substring(0, 30)}... panoya kopyalandı!'

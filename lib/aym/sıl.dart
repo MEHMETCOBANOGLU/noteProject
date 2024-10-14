@@ -1,454 +1,900 @@
-/////
-library;
-
+//////////////////////////////////////////////2///////////
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:Tablify/const/colors.dart';
+import 'package:motion_tab_bar/MotionTabBar.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:Tablify/data/database.dart';
 import 'package:Tablify/model/items.dart';
+import 'package:Tablify/pages/add_item_page.dart';
+import 'package:reorderables/reorderables.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:uuid/uuid.dart';
+import '../model/TabItem.dart';
+import '../navigation/item_list.wiev.dart';
+import 'dart:convert';
 import 'dart:io';
-import 'package:image_picker/image_picker.dart';
-import '../utility/image_copy.dart';
+import 'package:intl/intl.dart';
+import 'package:archive/archive_io.dart';
 
-Future<void> handleTapOnText(BuildContext context, String text, int index,
-    Item item, Function() onTableEdited) async {
-  // Regex patternler
-  final RegExp languagePattern = RegExp(r'\[Dil:(.*?)\]');
-  final RegExp namePattern = RegExp(r'\[İsim:(.*?)\]');
-  final RegExp optionsPattern = RegExp(r'\[Seçenekler:(.*?)\]');
-  final RegExp imagePattern = RegExp(r'\[Resim:(.*?)\]');
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
-  // Dil, İsim ve Seçenekleri yakala
-  final RegExpMatch? languageMatch = languagePattern.firstMatch(text);
-  final RegExpMatch? nameMatch = namePattern.firstMatch(text);
-  final RegExpMatch? optionsMatch = optionsPattern.firstMatch(text);
-  final RegExpMatch? imageMatch = imagePattern.firstMatch(text);
-
-  // Elde edilen verileri al
-  String currentDil = languageMatch?.group(1) ?? '';
-  String currentName = nameMatch?.group(1) ?? '';
-  String optionsString = optionsMatch?.group(1) ?? '';
-  List<String> options =
-      optionsString.isNotEmpty ? optionsString.split('|') : [];
-  String currentOption = options.isNotEmpty ? options[0] : '';
-  String? imageUrl = imageMatch?.group(1); // Resim URL'si, varsa
-
-  // Eğer herhangi bir tag varsa, dialogu aç
-  if (languageMatch != null ||
-      nameMatch != null ||
-      optionsMatch != null ||
-      imageMatch != null) {
-    await showAllTagsEditDialog(
-      context,
-      currentDil,
-      currentName,
-      currentOption,
-      options,
-      item,
-      index,
-      imageUrl, // Resim URL'sini dialoga gönder
-    );
-  }
+  @override
+  _HomePageState createState() => _HomePageState();
 }
 
-Future<void> showAllTagsEditDialog(
-  BuildContext context,
-  String currentDil,
-  String currentName,
-  String currentSelection,
-  List<String> options,
-  Item item,
-  int index,
-  String? imageUrl, // Resim URL'si, varsa null olabilir
-) async {
-  String text = item.expandedValue[index];
-  TextEditingController dilController = TextEditingController(text: currentDil);
-  TextEditingController isimController =
-      TextEditingController(text: currentName);
-  String selectedOption = currentSelection;
-  final ImagePicker picker = ImagePicker();
-  XFile? selectedImage;
+class TabData {
+  List<Item> data;
+  Map<String, bool> localExpandedStates;
+  bool allExpanded;
 
-  return showDialog(
-    context: context,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            title: const Center(
-              child: Text(
-                "Etiket Düzenleme",
-                style:
-                    TextStyle(fontStyle: FontStyle.italic, color: Colors.green),
-              ),
+  TabData({
+    required this.data,
+    required this.localExpandedStates,
+    required this.allExpanded,
+  });
+}
+
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
+  final SQLiteDatasource _sqliteDatasource = SQLiteDatasource();
+  bool _allExpanded = true;
+  List<Item> _data = [];
+  Map<String, bool> _localExpandedStates = {};
+  int _selectedIndexTab = 0;
+
+  List<TabItem> _tabs = [];
+  late TabController _tabController;
+  List<TabData> _tabDataList = [];
+  bool _isLoading = true;
+
+  List<ScrollController> _scrollControllers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTabs();
+    _scrollControllers = [];
+  }
+
+  // _loadTabs fonksiyonunun güncellenmiş hali
+  Future<void> _loadTabs() async {
+    await _sqliteDatasource.init();
+    List<TabItem> tabs = await _sqliteDatasource.getTabs();
+
+    setState(() {
+      if (tabs.isEmpty) {
+        // Varsayılan 'Tab 1' oluştur
+        String id = 'tab1';
+        String name = 'Tab 1';
+        TabItem tabItem = TabItem(id: id, name: name);
+        _tabs = [tabItem];
+        _sqliteDatasource.addTab(tabItem);
+      } else {
+        _tabs = tabs;
+      }
+
+      _tabDataList = List.generate(_tabs.length, (index) {
+        return TabData(data: [], localExpandedStates: {}, allExpanded: true);
+      });
+
+      // TabController'ı başlatıyoruz
+      _tabController = TabController(length: _tabs.length, vsync: this);
+      _loadData(_tabController.index);
+
+      // TabController dinleyicisini ekliyoruz
+      _tabController.addListener(() {
+        if (_tabController.indexIsChanging) {
+          if (_tabController.index == _tabs.length) {
+            // '+' butonuna tıklandı, yeni sekme ekle
+            _addNewTab();
+          } else {
+            _loadData(_tabController.index);
+            setState(() {}); // Sekme vurgusunu güncelle
+          }
+        } else {
+          // Kullanıcı sekmeler arasında kaydırma yaptı
+          if (_tabController.index < _tabs.length) {
+            _loadData(_tabController.index);
+            setState(() {}); // Sekme vurgusunu güncelle
+          }
+        }
+      });
+
+      _isLoading = false; // Başlatma tamamlandı
+
+      _scrollControllers =
+          List.generate(_tabs.length, (index) => ScrollController());
+    });
+  }
+
+  void _closeTab(int index) async {
+    TabItem tabItem = _tabs[index];
+    List<Item> data = _tabDataList[index].data;
+
+    if (data.isNotEmpty) {
+      bool? confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Sekmeyi Kapat'),
+          content: Text(
+              'Bu sekmeyi kapatmak ve içindeki tüm verileri silmek istediğinizden emin misiniz?'),
+          actions: [
+            TextButton(
+              child: Text('İptal', style: TextStyle(color: Colors.black)),
+              onPressed: () => Navigator.of(context).pop(false),
             ),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(
-                      text,
-                      style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              child: Text('Sil', style: TextStyle(color: Colors.white)),
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
+    // Verileri sil
+    await _sqliteDatasource.deleteItemsByTabId(tabItem.id);
+    await _sqliteDatasource.deleteTab(tabItem.id);
+
+    setState(() {
+      _tabs.removeAt(index);
+      _tabDataList.removeAt(index);
+
+      // İlgili ScrollController'ı kaldır ve serbest bırak
+      _scrollControllers[index].dispose();
+      _scrollControllers.removeAt(index);
+
+      // Yeni seçili index'i belirliyoruz
+      int currentIndex = _tabController.index;
+      if (currentIndex >= _tabs.length) {
+        currentIndex = _tabs.length - 1;
+        if (currentIndex < 0) currentIndex = 0;
+      }
+
+      if (_tabs.isEmpty) {
+        // Tüm sekmeler kapatılmışsa varsayılan 'Tab 1' ekliyoruz
+        String id = 'tab1';
+        String name = 'Tab 1';
+        TabItem tabItem = TabItem(id: id, name: name);
+        _tabs.add(tabItem);
+        _tabDataList
+            .add(TabData(data: [], localExpandedStates: {}, allExpanded: true));
+        _sqliteDatasource.addTab(tabItem);
+        _scrollControllers
+            .add(ScrollController()); // Yeni ScrollController ekleniyor
+      }
+
+      // TabController'ı güncelliyoruz
+      _updateTabController(initialIndex: currentIndex);
+    });
+
+    // Yeni seçili sekmeye geçiş yapıyoruz
+    _tabController.index = _selectedIndexTab;
+  }
+
+  // Preserving state across hot reload
+  @override
+  void didUpdateWidget(covariant HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (_tabController.length != _tabs.length) {
+      _tabController.removeListener(_tabControllerListener);
+      _tabController.dispose();
+      _tabController = TabController(
+        length: _tabs.length,
+        vsync: this,
+        initialIndex: _tabController.index.clamp(0, _tabs.length - 1),
+      );
+      _tabController.addListener(_tabControllerListener);
+      setState(() {});
+    }
+  }
+
+  void _tabControllerListener() {
+    if (_tabController.indexIsChanging) {
+      _loadData(_tabController.index);
+    }
+  }
+
+  // SQLite'dan veriyi yüklüyoruz #dbb
+  Future<void> _loadData(int index) async {
+    String tabId = _tabs[index].id;
+    List<Item> items = await _sqliteDatasource.getNotes(tabId);
+    setState(() {
+      _tabDataList[index].data = items;
+      _tabDataList[index].localExpandedStates = {
+        for (var item in items) item.id: item.isExpanded,
+      };
+    });
+  }
+
+  void _updateTabController({int? initialIndex}) {
+    int newIndex = initialIndex ?? _tabController.index;
+    if (newIndex >= _tabs.length) {
+      newIndex = _tabs.length - 1;
+      if (newIndex < 0) newIndex = 0;
+    }
+
+    _tabController.removeListener(_tabControllerListener);
+    _tabController.dispose();
+
+    _tabController = TabController(
+      length: _tabs.length,
+      vsync: this,
+      initialIndex: newIndex,
+    );
+
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        if (_tabController.index == _tabs.length) {
+          // '+' butonuna tıklandı, yeni sekme ekle
+          _addNewTab();
+        } else {
+          _loadData(_tabController.index);
+          setState(() {}); // Sekme vurgusunu güncelle
+        }
+      } else {
+        // Kullanıcı sekmeler arasında kaydırma yaptı
+        if (_tabController.index < _tabs.length) {
+          _loadData(_tabController.index);
+          setState(() {}); // Sekme vurgusunu güncelle
+        }
+      }
+    });
+
+    setState(() {}); // TabController değişikliğini UI'ye bildir
+  }
+
+  void _addNewTab() async {
+    int newTabIndex = _tabs.length + 1;
+    String id = const Uuid().v4();
+    String name = 'Tab $newTabIndex';
+    TabItem tabItem = TabItem(id: id, name: name);
+
+    await _sqliteDatasource.addTab(tabItem);
+
+    setState(() {
+      _tabs.add(tabItem);
+      _tabDataList
+          .add(TabData(data: [], localExpandedStates: {}, allExpanded: true));
+      _scrollControllers
+          .add(ScrollController()); // Yeni ScrollController ekleniyor
+
+      // TabController'ı güncelliyoruz
+      _updateTabController(initialIndex: _tabs.length - 1);
+    });
+
+    // Yeni sekmeye geçiş yapıyoruz
+    _tabController.animateTo(_tabs.length - 1);
+  }
+
+  // Tüm öğeleri genişletiyoruz #expandall
+  void _expandAll(TabData tabData) {
+    setState(() {
+      for (var item in tabData.data) {
+        item.isExpanded = true;
+        _sqliteDatasource.updateExpandedState(item.id, true);
+        tabData.localExpandedStates[item.id] = true;
+      }
+    });
+  }
+
+  // Tüm öğeleri daraltıyoruz #collapseall
+  void _collapseAll(TabData tabData) {
+    setState(() {
+      for (var item in tabData.data) {
+        item.isExpanded = false;
+        _sqliteDatasource.updateExpandedState(item.id, false);
+        tabData.localExpandedStates[item.id] = false;
+      }
+    });
+  }
+
+  // Tüm öğeleri genişletme veya daraltma arasında geçiş yapıyoruz #toggleexpandcollapse
+  void _toggleExpandCollapse() {
+    setState(() {
+      int currentIndex = _tabController.index;
+      TabData currentTabData = _tabDataList[currentIndex];
+      if (currentTabData.allExpanded) {
+        _collapseAll(currentTabData);
+      } else {
+        _expandAll(currentTabData);
+      }
+      currentTabData.allExpanded = !currentTabData.allExpanded;
+    });
+  }
+
+  @override
+  void dispose() {
+    for (var controller in _scrollControllers) {
+      controller.dispose();
+    }
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  // Cihazdaki verileri dışarı aktarır #exportdataa,dışarıaktarr
+  void _exportData() async {
+    try {
+      // SQLite veritabanından tüm sekmeleri ve onlara ait notları alıyoruz
+      List<TabItem> allTabs = await _sqliteDatasource.getTabs();
+      Map<String, dynamic> allData =
+          {}; // Tüm verileri tutmak için bir harita (map)
+
+      for (TabItem tab in allTabs) {
+        // Her sekmeye ait notları alıyoruz
+        List<Item> tabNotes = await _sqliteDatasource.getNotes(tab.id);
+        allData[tab.name] = tabNotes
+            .map((e) => e.toMap())
+            .toList(); // Her sekmenin notlarını ekliyoruz
+      }
+
+      // Veriyi JSON formatına çevir ve sıkıştır
+      String jsonData = jsonEncode(allData);
+      List<int> binaryData = utf8.encode(jsonData);
+      List<int>? compressedData = GZipEncoder().encode(binaryData);
+
+      // Dosya sistemine kaydet
+      final directory = await getApplicationDocumentsDirectory();
+      String formattedDate =
+          DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
+      final file =
+          File('${directory.path}/Tablify_dataExport_$formattedDate.bin');
+      await file.writeAsBytes(compressedData!);
+
+      // Dosyayı paylaş
+      await Share.shareXFiles([XFile(file.path)],
+          text: 'Here is your data export');
+
+      // Başarı mesajı göster
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Veriler başarıyla dışa aktarıldı.')),
+      );
+    } catch (e) {
+      // Hata mesajı göster
+      print('Veri dışa aktarılırken hata oluştu: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Veriler dışa aktarılırken bir hata oluştu.')),
+      );
+    }
+  }
+
+  // Cihazdaki verileri içeri aktarır #importdataa,içeriarıaktarr
+
+  void _importData() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['bin'],
+      );
+
+      if (result != null) {
+        File file = File(result.files.single.path!);
+        List<int> binaryData = await file.readAsBytes();
+        List<int> decompressedData = GZipDecoder().decodeBytes(binaryData);
+        String contents = utf8.decode(decompressedData);
+        Map<String, dynamic> jsonData =
+            jsonDecode(contents); // Tüm sekmeler ve notlar
+
+        // SQLite'den mevcut sekmeleri al
+        List<TabItem> existingTabs = await _sqliteDatasource.getTabs();
+
+        for (String tabName in jsonData.keys) {
+          // Mevcut sekme var mı kontrol et
+          TabItem? existingTab = existingTabs.firstWhere(
+            (tab) => tab.name == tabName,
+            orElse: () => TabItem(id: Uuid().v4(), name: ''),
+          );
+
+          // Eğer sekme zaten varsa, onu kullan, yoksa yeni sekme oluştur
+          String tabId;
+          if (existingTab.name.isNotEmpty) {
+            tabId = existingTab.id;
+          } else {
+            tabId = Uuid().v4();
+            TabItem newTab = TabItem(id: tabId, name: tabName);
+            await _sqliteDatasource.addTab(newTab);
+            setState(() {
+              _tabs.add(newTab);
+              _tabDataList.add(TabData(
+                  data: [], localExpandedStates: {}, allExpanded: true));
+              _scrollControllers
+                  .add(ScrollController()); // Yeni ScrollController ekliyoruz
+            });
+          }
+
+          // İlgili sekmeye ait notları içeri aktar
+          List<dynamic> notes = jsonData[tabName];
+          for (var note in notes) {
+            Item newItem = Item.fromMap(note);
+            newItem.tabId = tabId; // Notu ait olduğu sekmeye bağla
+            await _sqliteDatasource.addOrUpdateNote(newItem);
+          }
+        }
+
+        // Başarı mesajı
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
+        );
+
+        // Verileri yeniden yükle
+        _loadTabs();
+      }
+    } catch (e) {
+      // Hata mesajı göster
+      print('Veri içe aktarılırken hata oluştu: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Veriler içe aktarılırken bir hata oluştu.')),
+      );
+    }
+  }
+
+  // overwrite dialogu #overwritedialogg,aynbaşlıkmevcutt
+  Future<bool> _showOverwriteDialog(String title) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Aynı Başlık Mevcut'),
+              content: Text.rich(
+                TextSpan(
+                  text: '',
+                  children: <TextSpan>[
+                    TextSpan(
+                      text: title,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: 20),
-
-                    // Dil güncelleme alanı
-                    if (currentDil.isNotEmpty)
-                      Column(
-                        children: [
-                          Text(
-                            "Dili Güncelle:",
-                            style: TextStyle(
-                                fontSize: 16, color: Colors.green[400]),
-                          ),
-                          TextField(
-                            controller: dilController,
-                            decoration: InputDecoration(
-                              hintText: dilController.text,
-                              hintStyle: const TextStyle(color: Colors.black54),
-                            ),
-                            onChanged: (value) {
-                              setState(() {
-                                dilController.text = value;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    const SizedBox(height: 10),
-
-                    // İsim güncelleme alanı
-                    if (currentName.isNotEmpty)
-                      Column(
-                        children: [
-                          Text(
-                            "İsmi Güncelle:",
-                            style: TextStyle(
-                                fontSize: 16, color: Colors.green[400]),
-                          ),
-                          TextField(
-                            controller: isimController,
-                            decoration: InputDecoration(
-                                hintText: isimController.text,
-                                hintStyle:
-                                    const TextStyle(color: Colors.black54)),
-                            onChanged: (value) {
-                              setState(() {
-                                isimController.text = value;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    const SizedBox(height: 10),
-
-                    // Seçenekleri güncelleme alanı
-                    if (options.isNotEmpty)
-                      Column(
-                        children: [
-                          Text(
-                            "Seçeneği Güncelle:",
-                            style: TextStyle(
-                                fontSize: 16, color: Colors.green[400]),
-                          ),
-                          const SizedBox(height: 10),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxHeight: 200),
-                            child: Scrollbar(
-                              trackVisibility: true,
-                              thumbVisibility: true,
-                              child: ListView.builder(
-                                itemCount: options.length,
-                                shrinkWrap: true,
-                                itemBuilder: (context, index) {
-                                  return RadioListTile<String>(
-                                    activeColor: Colors.green,
-                                    title: Text(options[index]),
-                                    value: options[index],
-                                    groupValue: selectedOption,
-                                    onChanged: (String? newValue) {
-                                      setState(() {
-                                        selectedOption = newValue!;
-                                      });
-                                    },
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    // const SizedBox(height: 20),
-
-                    // Eğer [Resim:] etiketi varsa, resmi göster ve düzenlemeye izin ver
-                    if (imageUrl != null) ...[
-                      // Divider(thickness: 1, color: Colors.green[100]),
-                      Text(
-                        "Resmi Güncelle:",
-                        style:
-                            TextStyle(fontSize: 16, color: Colors.green[400]),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Mevcut resmi göster
-                      Container(
-                          height: 150,
-                          width: 150,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                          ),
-                          child: imageUrl!.isNotEmpty
-                              ? Image.file(
-                                  File(imageUrl!),
-                                  fit: BoxFit.cover,
-                                )
-                              : IconButton(
-                                  onPressed: () async {
-                                    final XFile? image = await picker.pickImage(
-                                        source: ImageSource.gallery);
-                                    if (image != null) {
-                                      setState(() {
-                                        selectedImage = image;
-                                        imageUrl =
-                                            image.path; // Resim yolunu güncelle
-                                      });
-                                    }
-                                  },
-                                  icon:
-                                      const Icon(Icons.file_download_outlined),
-                                  iconSize: 100,
-                                  color: Colors.grey)),
-
-                      const SizedBox(height: 10),
-
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[50],
-                        ),
-                        onPressed: () async {
-                          final XFile? image = await picker.pickImage(
-                              source: ImageSource.gallery);
-                          if (image != null) {
-                            setState(() {
-                              selectedImage = image;
-                              imageUrl = image.path; // Resim yolunu güncelle
-                            });
-                          }
-                        },
-                        child: const Text('Resim Seç',
-                            style: TextStyle(
-                                color: Colors.grey,
-                                fontWeight: FontWeight.bold)),
-                      ),
-                    ],
+                    const TextSpan(
+                      text:
+                          ' başlıklı bir not zaten var. Üzerine yazmak ister misiniz?',
+                    ),
                   ],
                 ),
               ),
-            ),
-            actions: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    child: const Text(
-                      "İptal",
-                      style: TextStyle(color: Colors.black),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('İptal',
+                      style: TextStyle(color: Colors.black)),
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                  },
+                ),
+                TextButton(
+                  child: const Text('Üzerine Yaz',
+                      style: TextStyle(
+                          color: Colors.green, fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  // AddItemPage'e yönlendirme, dönüşte veri bekliyoruz. #navigateandadditemm
+
+  void _navigateAndAddItem() async {
+    int currentIndex = _tabController.index;
+    String tabId = _tabs[currentIndex].id;
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => AddItemPage(tabId: tabId)),
+    );
+
+    if (result == true) {
+      _loadData(currentIndex);
+    }
+  }
+
+  // veritabanındaki tümverileri silme #deletealldataa,verilerisill,hepsinisill,sill
+  void _deleteAllData() async {
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Verileri Sil',
+            style: TextStyle(fontStyle: FontStyle.italic, color: Colors.green),
+          ),
+          content: Text(
+              'Tüm sekmelerdeki verileri silmek istediğinizden emin misiniz?'),
+          actions: <Widget>[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  child: const Text('İptal',
+                      style: TextStyle(color: Colors.black)),
+                  onPressed: () => Navigator.of(context).pop(false),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: const Text(
+                    'Sil',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
                     ),
                   ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[50],
+                  onPressed: () => Navigator.of(context).pop(true),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      // Tüm verileri sil
+      await _sqliteDatasource.deleteAllItems();
+      await _sqliteDatasource.deleteAllTabs();
+
+      // Tab 1 varsayılan sekmesini tekrar oluştur
+      String id = 'tab1';
+      String name = 'Tab 1';
+      TabItem tabItem = TabItem(id: id, name: name);
+      await _sqliteDatasource.addTab(tabItem);
+
+      setState(() {
+        // Tüm verileri tab listelerinden temizliyoruz
+        _tabDataList.clear();
+        _tabs.clear();
+
+        // Tab 1 sekmesini ve verisini tekrar ekliyoruz
+        _tabs = [tabItem];
+        _tabDataList = [
+          TabData(data: [], localExpandedStates: {}, allExpanded: true),
+        ];
+
+        // TabController'ı tekrar başlatıyoruz
+        _tabController.dispose();
+        _tabController = TabController(
+          length: _tabs.length,
+          vsync: this,
+          initialIndex: 0,
+        );
+
+        _tabController.addListener(_tabControllerListener);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Tüm veriler silindi.')),
+      );
+    }
+  }
+
+  void _onReorderTabs(int oldIndex, int newIndex) {
+    setState(() {
+      // Eğer yeniIndex, oldIndex'ten büyükse yeniIndex'i bir azaltmak gerekebilir
+      // çünkü kaldırma işlemi sonrasında liste kısalır
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+
+      // Sekmeyi ve ona ait veriyi listelerden kaldır ve yeni konuma ekle
+      final TabItem movedTab = _tabs.removeAt(oldIndex);
+      _tabs.insert(newIndex, movedTab);
+
+      final TabData movedTabData = _tabDataList.removeAt(oldIndex);
+      _tabDataList.insert(newIndex, movedTabData);
+
+      // ScrollController'ı da aynı şekilde yeniden sırala
+      final ScrollController movedScrollController =
+          _scrollControllers.removeAt(oldIndex);
+      _scrollControllers.insert(newIndex, movedScrollController);
+
+      // TabController'ı güncelle
+      _updateTabController(initialIndex: newIndex);
+    });
+  }
+
+  Widget _buildTabContent(int index) {
+    TabData currentTabData = _tabDataList[index];
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(3.0),
+          child: Column(
+            children: [
+              // Display the prompt in all tabs
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 5.0),
+                        child: RichText(
+                          text: TextSpan(
+                            style: const TextStyle(
+                                fontSize: 16, color: Colors.black),
+                            children: <TextSpan>[
+                              const TextSpan(
+                                  text:
+                                      'Yeni bir tablo eklemek ister misiniz? '),
+                              TextSpan(
+                                text: 'Ekle',
+                                style: const TextStyle(
+                                  color: Colors.green,
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = _navigateAndAddItem,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                    child: const Text(
-                      "Kopyala",
-                      style: TextStyle(
-                          color: Colors.green, fontWeight: FontWeight.bold),
-                    ),
-                    onPressed: () {
-                      // Güncellenen metni oluştur
-                      String updatedText = text;
-
-                      if (currentDil.isNotEmpty) {
-                        updatedText = updatedText.replaceFirst(
-                            RegExp(r'\[Dil:(.*?)\]'),
-                            '[Dil:${dilController.text}]');
-                      }
-
-                      if (currentName.isNotEmpty) {
-                        updatedText = updatedText.replaceFirst(
-                            RegExp(r'\[İsim:(.*?)\]'),
-                            '[İsim:${isimController.text}]');
-                      }
-
-                      if (options.isNotEmpty) {
-                        updatedText = updatedText.replaceFirst(
-                            RegExp(r'\[Seçenekler:(.*?)\]'),
-                            '[Seçenekler:$selectedOption]');
-                      }
-
-                      if (imageUrl != null) {
-                        updatedText = updatedText.replaceFirst(
-                            RegExp(r'\[Resim:(.*?)\]'), '[Resim:$imageUrl]');
-                      }
-
-                      // Metni ve varsa resmi kopyala
-                      Clipboard.setData(
-                          ClipboardData(text: getDisplayText(updatedText)));
-                      if (imageUrl != null && imageUrl!.isNotEmpty) {
-                        copyImageToClipboard(context, imageUrl!);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              duration: Duration(seconds: 1),
-                              content:
-                                  Text('Metin ve resim panoya kopyalandı!')),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              duration: Duration(seconds: 1),
-                              content: Text('Metin panoya kopyalandı!')),
-                        );
-                      }
-
-                      Navigator.of(context).pop();
-                    },
                   ),
                 ],
               ),
+              if (currentTabData.data.isNotEmpty)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                        onPressed: () => _toggleExpandCollapse(),
+                        child: Text(
+                          currentTabData.allExpanded
+                              ? 'Tümünü Daralt'
+                              : 'Tümünü Genişlet',
+                          style: const TextStyle(
+                            color: Colors.green,
+                          ),
+                        )),
+                  ],
+                ),
             ],
-          );
-        },
-      );
-    },
-  );
-}
-
-// Display text function: Displays only name, language, and option info// Display text function: Displays only name, language, and option info
-String getDisplayText(String text) {
-  final RegExp languagePattern = RegExp(r'\[Dil:(.*?)\]');
-  final RegExp namePattern = RegExp(r'\[İsim:(.*?)\]');
-  final RegExp optionsPattern = RegExp(r'\[Seçenekler:(.*?)\]');
-  final RegExp imagePattern = RegExp(r'\[Resim:(.*?)\]');
-
-  // Dil etiketini kaldır ve sadece içeriği bırak
-  text = text.replaceAllMapped(languagePattern, (match) {
-    return match.group(1) ?? '';
-  });
-
-  // İsim etiketini kaldır ve sadece içeriği bırak
-  text = text.replaceAllMapped(namePattern, (match) {
-    return match.group(1) ?? '';
-  });
-
-  // Seçenekler etiketini kaldır ve sadece seçilen değeri bırak
-  text = text.replaceAllMapped(optionsPattern, (match) {
-    String optionsString = match.group(1) ?? '';
-    List<String> options = optionsString.split('|');
-    return options.isNotEmpty ? options[0] : '';
-  });
-
-  // Resim etiketini kaldır (resim içeriğini görüntülemiyoruz)
-  text = text.replaceAllMapped(imagePattern, (match) {
-    return ''; // Resim tagini gösterme, boş bırak
-  });
-
-  return text;
-}
-
-// Display text function: Displays name, language, option info with color
-Widget getColoredDisplayText(String text) {
-  List<InlineSpan> textSpans = [];
-  int currentIndex = 0;
-
-  // Hem Dil, İsim, Seçenekler ve Resim patternlerini kapsayan regex
-  final RegExp allPatterns = RegExp(
-      r'\[Dil:(.*?)\]|\[İsim:(.*?)\]|\[Seçenekler:(.*?)\]|\[Resim:(.*?)\]');
-  Iterable<RegExpMatch> matches = allPatterns.allMatches(text);
-
-  for (final match in matches) {
-    if (match.start > currentIndex) {
-      textSpans.add(TextSpan(
-        text: text.substring(currentIndex, match.start),
-        style: const TextStyle(color: Colors.black),
-      ));
-    }
-
-    // Dil patterni
-    if (match.group(1) != null) {
-      textSpans.add(
-        TextSpan(
-          text: match.group(1),
-          style: TextStyle(
-            color: Colors.brown,
-            fontWeight: FontWeight.w500,
-            fontStyle: FontStyle.italic,
-            decoration: TextDecoration.underline,
-            decorationColor: Colors.brown[300],
-            decorationStyle: TextDecorationStyle.dotted,
-            decorationThickness: 2.0,
           ),
         ),
-      );
-    }
-    // İsim patterni
-    else if (match.group(2) != null) {
-      textSpans.add(
-        TextSpan(
-          text: match.group(2),
-          style: TextStyle(
-            color: Colors.brown,
-            fontWeight: FontWeight.w500,
-            fontStyle: FontStyle.italic,
-            decoration: TextDecoration.underline,
-            decorationColor: Colors.brown[300],
-            decorationStyle: TextDecorationStyle.solid,
-            decorationThickness: 2.0,
+        Expanded(
+          child: SingleChildScrollView(
+            controller: _scrollControllers[index],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5.0),
+              child: _buildPanel(currentTabData),
+            ),
           ),
         ),
-      );
-    }
-    // Seçenekler patterni
-    else if (match.group(3) != null) {
-      String optionsString = match.group(3)!;
-      List<String> options = optionsString.split('|');
-      String defaultOption = options.isNotEmpty ? options[0] : '';
-
-      textSpans.add(
-        TextSpan(
-          text: defaultOption,
-          style: TextStyle(
-            color: Colors.brown,
-            fontWeight: FontWeight.w500,
-            fontStyle: FontStyle.normal,
-            decoration: TextDecoration.underline,
-            decorationColor: Colors.brown[300],
-            decorationStyle: TextDecorationStyle.double,
-            decorationThickness: 1.5,
-          ),
-        ),
-      );
-    }
-
-    // Resim patterni: Resim tagi görünmeyecek
-    currentIndex = match.end;
+      ],
+    );
   }
 
-  if (currentIndex < text.length) {
-    textSpans.add(TextSpan(
-      text: text.substring(currentIndex),
-      style: const TextStyle(color: Colors.black),
-    ));
+  //listeyi oluşturmak için bir widget oluşturuyoruz
+  Widget _buildPanel(TabData tabData) {
+    return Column(
+      children: tabData.data.map<Widget>((Item item) {
+        return Padding(
+          padding: const EdgeInsets.only(
+              right: 2.0, left: 2.0, bottom: 5.0, top: 2.0),
+          child: ListItem(
+            item: item,
+            isGlobalExpanded: tabData.allExpanded,
+            isLocalExpanded: tabData.localExpandedStates[item.id] ?? false,
+            onExpandedChanged: (bool isExpanded) {
+              _sqliteDatasource.updateExpandedState(item.id, isExpanded);
+
+              setState(() {
+                tabData.localExpandedStates[item.id] = isExpanded;
+                tabData.allExpanded = tabData.data.every(
+                    (item) => tabData.localExpandedStates[item.id] ?? false);
+              });
+            },
+            onTableEdited: () {
+              _loadData(_tabController.index);
+            },
+          ),
+        );
+      }).toList(),
+    );
   }
 
-  return RichText(
-    text: TextSpan(children: textSpans),
-  );
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Yükleniyor...'),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    } else {
+      return Scaffold(
+        appBar: AppBar(
+          shadowColor: Colors.green[10],
+          surfaceTintColor: Colors.green[400],
+          title: const Center(
+              child: Text(
+            'DEV SECURE',
+            style: TextStyle(
+              fontSize: 25,
+            ),
+          )),
+        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 50, // Sekmelerin yüksekliği
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal, // Yatay kaydırma
+                child: ReorderableWrap(
+                  needsLongPressDraggable: false, // Uzun basma gerektirmez
+                  spacing: 8.0, // Sekmeler arası boşluk
+                  runSpacing: 4.0, // Satırlar arası boşluk
+                  direction: Axis.horizontal, // Yatay düzenleme
+                  onReorder: _onReorderTabs, // Sıralama fonksiyonu
+                  children: _tabs.asMap().entries.map((entry) {
+                        int index = entry.key;
+                        TabItem tabItem = entry.value;
+                        return GestureDetector(
+                          key: ValueKey(
+                              tabItem.id), // Her sekme için benzersiz anahtar
+                          onTap: () {
+                            // Sekmeye tıklandığında ilgili sekmeye geçiş yap
+                            _tabController.animateTo(index);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12.0, vertical: 5.0),
+                            decoration: BoxDecoration(
+                              color: _tabController.index == index
+                                  ? Colors.green[300] // Seçili sekmenin rengi
+                                  : Colors.green[100], // Diğer sekmelerin rengi
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(15.0)), // Köşe yuvarlama
+                              // border: Border.all(
+                              //   color: Colors.green, // Kenarlık rengi
+                              //   width: 1.0, // Kenarlık kalınlığı
+                              // ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize
+                                  .min, // Sekme genişliğini daraltır
+                              children: [
+                                Text(
+                                  tabItem.name,
+                                  style: TextStyle(
+                                    color: _tabController.index == index
+                                        ? Colors
+                                            .white // Seçili sekme metin rengi
+                                        : Colors
+                                            .black, // Diğer sekme metin rengi
+                                  ),
+                                ),
+                                SizedBox(
+                                    width:
+                                        4.0), // Metin ve 'X' ikonu arası boşluk
+                                if (index != 0) // İlk sekme hariç 'X' göster
+                                  GestureDetector(
+                                    onTap: () {
+                                      // 'X' ikonuna tıklanırsa sekmeyi kapat
+                                      _closeTab(index);
+                                    },
+                                    child: Icon(
+                                      Icons.close,
+                                      size: 16.0,
+                                      color: _tabController.index == index
+                                          ? Colors
+                                              .white // Seçili sekme 'X' ikonu rengi
+                                          : Colors
+                                              .black, // Diğer sekme 'X' ikonu rengi
+                                    ),
+                                  )
+                                else
+                                  const SizedBox(
+                                      width: 16.0), // İlk sekme için boşluk
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList() +
+                      [
+                        GestureDetector(
+                          onTap: _addNewTab,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12.0, vertical: 5.0),
+                            decoration: const BoxDecoration(
+                              // color: Colors.green[100],
+                              borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(15.0)),
+                            ),
+                            child: const Icon(Icons.add, color: Colors.green),
+                          ),
+                        ),
+                      ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: _tabs.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  return _buildTabContent(index); // Sekme içerikleri
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+        bottomNavigationBar: Theme(
+          data: Theme.of(context).copyWith(
+            splashColor: Colors.green[100],
+          ),
+          child: BottomNavigationBar(
+            backgroundColor: Colors.green[50],
+            selectedItemColor: Colors.green[300],
+            unselectedItemColor: Colors.green[200],
+            type: BottomNavigationBarType.fixed, // Kayma davranışını önler
+            items: [
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green[200],
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.import_export, color: Colors.white),
+                ),
+                label: 'İçeri Aktar',
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green[200],
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.file_upload, color: Colors.white),
+                ),
+                label: 'Dışarı Aktar',
+              ),
+              BottomNavigationBarItem(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green[200],
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                label: 'Sil',
+              ),
+            ],
+            currentIndex: 0, // Hiçbir öğe seçili olarak vurgulanmamış
+            onTap: (index) {
+              switch (index) {
+                case 0:
+                  _importData();
+                  break;
+                case 1:
+                  _exportData();
+                  break;
+                case 2:
+                  _deleteAllData();
+                  break;
+              }
+            },
+          ),
+        ),
+      );
+    }
+  }
 }
+////////////////////////////////////////////////
+///
+///
+///

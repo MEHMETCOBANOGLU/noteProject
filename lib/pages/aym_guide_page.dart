@@ -1,7 +1,6 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:Tablify/data/aym_data.dart';
-import 'package:Tablify/pages/add_item_page.dart';
 
 //AYM bilgilendirme sayfasi
 
