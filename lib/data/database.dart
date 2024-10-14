@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:Tablify/model/items.dart';
 import 'package:uuid/uuid.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'dart:convert';
 
 import '../model/TabItem.dart';
 
@@ -450,5 +449,14 @@ class SQLiteDatasource {
     } catch (e) {
       print("Error deleting items for tab $tabId: $e");
     }
+  }
+
+  Future<void> updateTabName(String tabId, String newName) async {
+    await _database.update(
+      'tabs',
+      {'name': newName},
+      where: 'id = ?',
+      whereArgs: [tabId],
+    );
   }
 }

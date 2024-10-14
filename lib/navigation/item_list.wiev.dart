@@ -165,14 +165,16 @@ class _ListItemState extends State<ListItem> {
                   top: 2,
                   right: 1,
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.green[100],
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       '${widget.item.expandedValue.length}',
-                      style: TextStyle(fontSize: 12.0, color: Colors.white),
+                      style:
+                          const TextStyle(fontSize: 12.0, color: Colors.white),
                     ),
                   ),
                 ),
