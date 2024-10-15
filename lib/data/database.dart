@@ -26,37 +26,37 @@ class SQLiteDatasource {
 
       _database = await openDatabase(
         path,
-        version: 4, // Yeni tablo eklediğimiz için versiyonu artırıyoruz
+        version: 5, // Yeni tablo eklediğimiz için versiyonu artırıyoruz
         onCreate: (db, version) async {
           print("Creating tables...");
           await db.execute('''
-          CREATE TABLE notes (
-            id TEXT PRIMARY KEY,
-            title TEXT,
-            subtitle TEXT,
-            items TEXT,
-            imageUrls BLOB,
-            isExpanded INTEGER,
-            "order" INTEGER
-            tabId TEXT
-          )
-        ''');
+    CREATE TABLE notes (
+      id TEXT PRIMARY KEY,
+      title TEXT,
+      subtitle TEXT,
+      items TEXT,
+      imageUrls BLOB,
+      isExpanded INTEGER,
+      "order" INTEGER,
+      tabId TEXT
+    )
+  ''');
 
-          // Yeni `options` tablosunu oluştur
+          // Yeni options tablosunu oluştur
           await db.execute('''
-          CREATE TABLE IF NOT EXISTS options (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            option_text TEXT NOT NULL
-          )
-        ''');
+    CREATE TABLE IF NOT EXISTS options (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      option_text TEXT NOT NULL
+    )
+  ''');
 
-          // Yeni `tabs` tablosunu oluştur
+          // Yeni tabs tablosunu oluştur
           await db.execute('''
-  CREATE TABLE IF NOT EXISTS tabs (
-    id TEXT PRIMARY KEY,
-    name TEXT
-  )
-''');
+    CREATE TABLE IF NOT EXISTS tabs (
+      id TEXT PRIMARY KEY,
+      name TEXT
+    )
+  ''');
 
           // Varsayılan seçenekleri ekleyin
           await db.insert('options', {
@@ -79,35 +79,114 @@ class SQLiteDatasource {
         },
 
         onUpgrade: (db, oldVersion, newVersion) async {
+          print("Upgrading database from version $oldVersion to $newVersion");
+
+          // Sürüm 2'ye yükseltme işlemleri
           if (oldVersion < 2) {
-            // Version 2 changes
+            print("Applying upgrade to version 2: Creating 'options' table.");
             await db.execute('''
-    CREATE TABLE IF NOT EXISTS options (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      option_text TEXT NOT NULL
-    )
-  ''');
+      CREATE TABLE IF NOT EXISTS options (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        option_text TEXT NOT NULL
+      )
+    ''');
+            // Varsayılan seçenekleri ekleyin
+            await db.insert('options', {
+              'option_text':
+                  'Bugün [Dil:ingilizce] dilbilgisi üzerine çalışıyorum.'
+            });
+            await db.insert('options', {
+              'option_text':
+                  '[İsim:Mehmet], bugün yeni bir spor rutini deniyor.'
+            });
+            await db.insert('options', {
+              'option_text':
+                  '[İsim:Ahmet], [Dil:ingilizce] bir film izleyerek dinleme becerilerini geliştiriyor.'
+            });
+            await db.insert('options', {
+              'option_text':
+                  'Görev Durumu: [Seçenekler:Başlamadı|Devam Ediyor|Tamamlandı]'
+            });
           }
+
+          // Sürüm 3'e yükseltme işlemleri
           if (oldVersion < 3) {
-            // 'tabId' kolonunu ekliyoruz
+            print(
+                "Applying upgrade to version 3: Adding 'tabId' column to 'notes' table.");
             await db.execute('ALTER TABLE notes ADD COLUMN tabId TEXT');
-            // Mevcut notlar için varsayılan 'tab1' değerini atıyoruz
+            // Mevcut notlara varsayılan 'tab1' değerini atayın
             await db.execute('UPDATE notes SET tabId = ?', ['tab1']);
           }
 
+          // Sürüm 4'e yükseltme işlemleri
           if (oldVersion < 4) {
+            print(
+                "Applying upgrade to version 4: Creating 'tabs' table and inserting default tab.");
             await db.execute('''
-    CREATE TABLE IF NOT EXISTS tabs (
-      id TEXT PRIMARY KEY,
-      name TEXT
-    )
-  ''');
-            // Mevcut notlarınız varsa ve 'tabId' kolonu eklenmemişse, eski notlara varsayılan bir 'tabId' atayın
-            await db.execute('UPDATE notes SET tabId = ?', ['tab1']);
-
+      CREATE TABLE IF NOT EXISTS tabs (
+        id TEXT PRIMARY KEY,
+        name TEXT
+      )
+    ''');
             // Varsayılan 'Tab 1' sekmesini oluşturun
             await db.insert('tabs', {'id': 'tab1', 'name': 'Tab 1'});
           }
+
+          // Sürüm 5'e yükseltme işlemleri (Yeni düzeltmeler için)
+          if (oldVersion < 5) {
+            print(
+                "Applying upgrade to version 5: Correcting 'notes' table schema.");
+            // 'notes' tablosunu yedeklemek için geçici tablo oluşturun
+            await db.execute('''
+      CREATE TABLE notes_backup (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        subtitle TEXT,
+        items TEXT,
+        imageUrls BLOB,
+        isExpanded INTEGER,
+        "order" INTEGER,
+        tabId TEXT
+      )
+    ''');
+
+            // Verileri yedek tabloya taşıyın
+            await db.execute('''
+      INSERT INTO notes_backup (id, title, subtitle, items, imageUrls, isExpanded, "order", tabId)
+      SELECT id, title, subtitle, items, imageUrls, isExpanded, "order", tabId FROM notes
+    ''');
+
+            // Orijinal 'notes' tablosunu silin
+            await db.execute('DROP TABLE notes');
+
+            // Doğru şemaya sahip yeni 'notes' tablosunu oluşturun
+            await db.execute('''
+      CREATE TABLE notes (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        subtitle TEXT,
+        items TEXT,
+        imageUrls BLOB,
+        isExpanded INTEGER,
+        "order" INTEGER,
+        tabId TEXT
+      )
+    ''');
+
+            // Verileri yedek tablodan yeni tabloya geri taşıyın
+            await db.execute('''
+      INSERT INTO notes (id, title, subtitle, items, imageUrls, isExpanded, "order", tabId)
+      SELECT id, title, subtitle, items, imageUrls, isExpanded, "order", tabId FROM notes_backup
+    ''');
+
+            // Yedek tabloyu silin
+            await db.execute('DROP TABLE notes_backup');
+
+            print("'notes' tablosu başarıyla güncellendi.");
+          }
+
+          print(
+              "Database upgrade to version $newVersion completed successfully.");
         },
       );
     } catch (e) {
