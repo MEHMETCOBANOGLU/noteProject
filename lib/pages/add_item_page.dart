@@ -211,7 +211,6 @@ class _AddItemPageState extends State<AddItemPage> {
   void _copyAllToClipboard() async {
     var items = await Future.wait(_itemControllers.map((controller) async {
       int index = _itemControllers.indexOf(controller);
-      // Base64 yerine dosya yolunu kopyalıyoruz
       return {
         'text': controller.text,
         'image': _imagePaths[index], // Resim dosya yolunu ekliyoruz
@@ -225,15 +224,23 @@ class _AddItemPageState extends State<AddItemPage> {
     };
 
     String yamlData = json2yaml(dataMap);
-    Clipboard.setData(ClipboardData(text: yamlData));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Veriler panoya başarıyla kopyalandı!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
 
-    print(yamlData);
+    // YAML Önizleme Dialogu gösteriliyor
+    await _showYamlPreviewDialog(
+      title: 'YAML Önizlemesi',
+      content: yamlData,
+      actionLabel: 'Kopyala',
+      onActionPressed: () async {
+        Clipboard.setData(ClipboardData(text: yamlData));
+        Navigator.of(context).pop(); // Dialogu kapat
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Veriler panoya başarıyla kopyalandı!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      },
+    );
   }
 
 // Base64'ten resmi geçici bir dosya olarak kaydeden fonksiyon
@@ -252,63 +259,72 @@ class _AddItemPageState extends State<AddItemPage> {
   Future<void> _pasteAllFromClipboard() async {
     ClipboardData? data =
         await Clipboard.getData('text/plain'); // Panodan veri alınır
-    if (data != null) {
-      try {
-        // Gelen metin YAML formatına dönüştürülüyor
-        var yamlMap = loadYaml(data.text!);
 
-        // Eğer geçerli YAML ise işlemi yap
-        String title = yamlMap['title'];
-        String subtitle =
-            yamlMap['subtitle'] ?? ''; // Eğer boşsa "" olarak ayarlıyoruz
-        List items = yamlMap['items'];
+    if (data == null || data.text == null || data.text!.isEmpty) {
+      _showInvalidClipboardSnackbar();
+      return;
+    }
 
-        List<String?> imagePaths = [];
-        for (int i = 0; i < items.length; i++) {
-          var item = items[i];
-          if (item['image'] != null) {
-            if (isBase64(item['image'])) {
-              String filePath = await _convertBase64ToImage(item['image'], i);
-              imagePaths.add(filePath);
-            } else {
-              imagePaths.add(item['image']);
-            }
+    String yamlText = data.text!;
+
+    try {
+      var yamlMap = loadYaml(yamlText);
+      print("YAML başarıyla yüklendi: $yamlMap");
+
+      // YAML verisinden başlık, alt başlık ve item bilgileri alınır
+      String title = yamlMap['title'];
+      String subtitle = yamlMap['subtitle'] ?? '';
+      List items = yamlMap['items'];
+
+      List<String?> imagePaths = [];
+      for (int i = 0; i < items.length; i++) {
+        var item = items[i];
+        if (item['image'] != null) {
+          if (isBase64(item['image'])) {
+            String filePath = await _convertBase64ToImage(item['image'], i);
+            imagePaths.add(filePath);
           } else {
-            imagePaths.add(null);
+            imagePaths.add(item['image']);
           }
+        } else {
+          imagePaths.add(null);
         }
-
-        // Yapıştırma işlemini gerçekleştiriyoruz
-        setState(() {
-          _titleController.text = title;
-          _subtitleController.text = subtitle; // Alt başlık buraya atanıyor
-
-          _itemControllers.clear();
-          _menuKeys.clear();
-          _imagePaths.clear();
-
-          for (int i = 0; i < items.length; i++) {
-            var item = items[i];
-            _itemControllers.add(TextEditingController(text: item['text']));
-            _imagePaths.add(imagePaths[i]);
-            _menuKeys.add(GlobalKey());
-          }
-        });
-
-        // Yapıştırma işlemi başarılı olursa Snackbar ile bildirim göster
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            duration: Duration(seconds: 2),
-            backgroundColor: Colors.green,
-            content: Text('Veriler başarıyla yapıştırıldı!'),
-          ),
-        );
-      } catch (e) {
-        // Eğer YAML değilse Snackbar ile uyarı göster
-        _showInvalidClipboardSnackbar();
       }
-    } else {
-      // Panoda veri yoksa Snackbar ile uyarı göster
+
+      // YAML Önizleme Dialogu gösteriliyor
+      await _showYamlPreviewDialog(
+        title: 'YAML Önizlemesi',
+        content: yamlText,
+        actionLabel: 'Yapıştır',
+        onActionPressed: () {
+          setState(() {
+            _titleController.text = title;
+            _subtitleController.text = subtitle;
+
+            _itemControllers.clear();
+            _menuKeys.clear();
+            _imagePaths.clear();
+
+            for (int i = 0; i < items.length; i++) {
+              var item = items[i];
+              _itemControllers.add(TextEditingController(text: item['text']));
+              _imagePaths.add(imagePaths[i]);
+              _menuKeys.add(GlobalKey());
+            }
+          });
+
+          Navigator.of(context).pop(); // Dialogu kapat
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              duration: Duration(seconds: 2),
+              backgroundColor: Colors.green,
+              content: Text('Veriler başarıyla yapıştırıldı!'),
+            ),
+          );
+        },
+      );
+    } catch (e) {
       _showInvalidClipboardSnackbar();
     }
   }
@@ -321,6 +337,48 @@ class _AddItemPageState extends State<AddItemPage> {
         backgroundColor: Colors.red,
         content: Text('Panoda geçerli bir YAML verisi bulunamadı!'),
       ),
+    );
+  }
+
+  Future<void> _showYamlPreviewDialog({
+    required String title,
+    required String content,
+    required String actionLabel,
+    required VoidCallback onActionPressed,
+  }) async {
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Center(child: Text(title)),
+          content: SingleChildScrollView(
+            child: SelectableText(
+              content,
+              style: const TextStyle(fontFamily: 'monospace'),
+            ),
+          ),
+          actions: <Widget>[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  child: const Text('İptal',
+                      style: TextStyle(color: Colors.black)),
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                  },
+                ),
+                ElevatedButton(
+                  child: Text(actionLabel,
+                      style: TextStyle(
+                          color: Colors.green, fontWeight: FontWeight.bold)),
+                  onPressed: onActionPressed,
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 
