@@ -270,29 +270,6 @@ class SQLiteDatasource {
     }
   }
 
-  // Notu güncelleme fonksiyonu
-  Future<bool> updateNote(String id, String title, String subtitle,
-      List<String> items, List<String> imageUrls, String tabId) async {
-    try {
-      await _database.update(
-        'notes',
-        {
-          'title': title,
-          'subtitle': subtitle,
-          'items': items.join('||'),
-          'imageUrls': imageUrls.join('||'),
-          'tabId': tabId, // Include tabId
-        },
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-      return true;
-    } catch (e) {
-      print("Error updating note: $e");
-      return false;
-    }
-  }
-
   // Not silme fonksiyonu
   Future<bool> deleteTable(String id) async {
     try {
