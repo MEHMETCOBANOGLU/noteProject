@@ -1,4 +1,6 @@
 //////////////////////////////////////////////2///////////
+library;
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -38,10 +40,10 @@ class TabData {
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final SQLiteDatasource _sqliteDatasource = SQLiteDatasource();
-  bool _allExpanded = true;
-  List<Item> _data = [];
-  Map<String, bool> _localExpandedStates = {};
-  int _selectedIndexTab = 0;
+  final bool _allExpanded = true;
+  final List<Item> _data = [];
+  final Map<String, bool> _localExpandedStates = {};
+  final int _selectedIndexTab = 0;
 
   List<TabItem> _tabs = [];
   late TabController _tabController;
@@ -116,19 +118,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       bool? confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text('Sekmeyi Kapat'),
-          content: Text(
+          title: const Text('Sekmeyi Kapat'),
+          content: const Text(
               'Bu sekmeyi kapatmak ve içindeki tüm verileri silmek istediğinizden emin misiniz?'),
           actions: [
             TextButton(
-              child: Text('İptal', style: TextStyle(color: Colors.black)),
+              child: const Text('İptal', style: TextStyle(color: Colors.black)),
               onPressed: () => Navigator.of(context).pop(false),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
               ),
-              child: Text('Sil', style: TextStyle(color: Colors.white)),
+              child: const Text('Sil', style: TextStyle(color: Colors.white)),
               onPressed: () => Navigator.of(context).pop(true),
             ),
           ],
@@ -353,13 +355,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       // Başarı mesajı göster
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Veriler başarıyla dışa aktarıldı.')),
+        const SnackBar(content: Text('Veriler başarıyla dışa aktarıldı.')),
       );
     } catch (e) {
       // Hata mesajı göster
       print('Veri dışa aktarılırken hata oluştu: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Veriler dışa aktarılırken bir hata oluştu.')),
+        const SnackBar(
+            content: Text('Veriler dışa aktarılırken bir hata oluştu.')),
       );
     }
   }
@@ -388,7 +391,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           // Mevcut sekme var mı kontrol et
           TabItem? existingTab = existingTabs.firstWhere(
             (tab) => tab.name == tabName,
-            orElse: () => TabItem(id: Uuid().v4(), name: ''),
+            orElse: () => TabItem(id: const Uuid().v4(), name: ''),
           );
 
           // Eğer sekme zaten varsa, onu kullan, yoksa yeni sekme oluştur
@@ -396,7 +399,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           if (existingTab.name.isNotEmpty) {
             tabId = existingTab.id;
           } else {
-            tabId = Uuid().v4();
+            tabId = const Uuid().v4();
             TabItem newTab = TabItem(id: tabId, name: tabName);
             await _sqliteDatasource.addTab(newTab);
             setState(() {
@@ -419,7 +422,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
         // Başarı mesajı
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
+          const SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
         );
 
         // Verileri yeniden yükle
@@ -429,7 +432,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       // Hata mesajı göster
       print('Veri içe aktarılırken hata oluştu: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Veriler içe aktarılırken bir hata oluştu.')),
+        const SnackBar(
+            content: Text('Veriler içe aktarılırken bir hata oluştu.')),
       );
     }
   }
@@ -504,7 +508,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             'Verileri Sil',
             style: TextStyle(fontStyle: FontStyle.italic, color: Colors.green),
           ),
-          content: Text(
+          content: const Text(
               'Tüm sekmelerdeki verileri silmek istediğinizden emin misiniz?'),
           actions: <Widget>[
             Row(
@@ -568,7 +572,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Tüm veriler silindi.')),
+        const SnackBar(content: Text('Tüm veriler silindi.')),
       );
     }
   }
@@ -599,7 +603,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Future<void> _showRenameTabDialog(int index) async {
-    TextEditingController _textController =
+    TextEditingController textController =
         TextEditingController(text: _tabs[index].name);
 
     String? newName = await showDialog<String>(
@@ -608,7 +612,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return AlertDialog(
           title: const Text('Sekme İsmini Değiştir'),
           content: TextField(
-            controller: _textController,
+            controller: textController,
             decoration: const InputDecoration(
               hintText: 'Yeni sekme ismi',
             ),
@@ -627,13 +631,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
                 ElevatedButton(
-                  child: Text(
+                  child: const Text(
                     'Kaydet',
                     style: TextStyle(
                         color: Colors.green, fontWeight: FontWeight.bold),
                   ),
                   onPressed: () {
-                    String inputName = _textController.text.trim();
+                    String inputName = textController.text.trim();
                     if (inputName.isNotEmpty) {
                       Navigator.of(context).pop(inputName);
                     }
@@ -837,7 +841,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                               .black, // Diğer sekme metin rengi
                                     ),
                                   ),
-                                  SizedBox(width: 10.0),
+                                  const SizedBox(width: 10.0),
                                   if (index != 0) // İlk sekme hariç 'X' göster
                                     GestureDetector(
                                       onTap: () {

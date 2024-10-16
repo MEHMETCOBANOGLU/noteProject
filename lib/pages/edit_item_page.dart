@@ -10,6 +10,8 @@ import 'package:yaml/yaml.dart';
 import '../data/database.dart';
 import 'dart:io';
 
+import '../utility/İtem_edit.dart';
+
 class EditItemPage extends StatefulWidget {
   final Item item;
 
@@ -118,33 +120,6 @@ class _EditItemPageState extends State<EditItemPage> {
     } else {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Tablo düzenlenemedi!')));
-    }
-  }
-
-// Resimleri kalıcı olarak kaydetme fonksiyonu
-  Future<String> _saveImagePermanently(File image) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final fileName = image.path.split('/').last;
-    final newPath = '${directory.path}/$fileName';
-
-    final savedImage = await image.copy(newPath);
-    return savedImage.path;
-  }
-
-  //itemler için resim seçme #resimseçmee,itemresimm
-
-  Future<void> _pickImage(int index) async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      File file = File(image.path);
-      String savedImagePath =
-          await _saveImagePermanently(file); // Resmi kalıcı kaydediyoruz
-      print("Resim kaydedildi: $savedImagePath");
-
-      setState(() {
-        _selectedImages[index] = File(savedImagePath);
-        _existingImagePaths[index] = savedImagePath;
-      });
     }
   }
 
@@ -337,6 +312,26 @@ class _EditItemPageState extends State<EditItemPage> {
     );
   }
 
+  //seçenekler listboxundan seçenek silme
+  void _removeOption(int index) {
+    setState(() {
+      options.removeAt(index); // İlgili indeksteki elemanı sil
+    });
+  }
+
+//seçenekler listboxuna yeni seçenek ekleme
+  void _addNewOption(String value) async {
+    if (value.isNotEmpty && !options.contains(value)) {
+      setState(() {
+        options.add(value);
+        _newOptionController.clear();
+        _isAddingNewOption = false;
+      });
+
+      await _sqliteDatasource.addOption(value);
+    }
+  }
+
 // listeye item ekleme #listeyeitemekleme
   void _addItemField() {
     setState(() {
@@ -409,101 +404,38 @@ class _EditItemPageState extends State<EditItemPage> {
           _focusNodes.removeAt(index);
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('İtem başarıyla silindi!'),
-            backgroundColor: Colors.green,
+        List<String> items =
+            _itemControllers.map((controller) => controller.text).toList();
+        List<String> imagePaths = [];
+
+        for (int i = 0; i < _selectedImages.length; i++) {
+          if (_selectedImages[i] != null) {
+            imagePaths.add(_selectedImages[i]!.path);
+            _existingImagePaths[i] = _selectedImages[i]!.path;
+          } else {
+            imagePaths.add(_existingImagePaths[i]!);
+          }
+        }
+
+        bool success = await _sqliteDatasource.addOrUpdateNote(
+          Item(
+            id: const Uuid().v4(),
+            headerValue: _titleController.text,
+            subtitle: _subtitleController.text,
+            expandedValue: items,
+            imageUrls: imagePaths, // Dosya yolu kaydediliyor
+            tabId: widget.item.tabId,
           ),
         );
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('İtem başarıyla silindi!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
-    }
-  }
-
-  //3 nokta ikonuna tıklandıgında açılan menu #3noktaikonmenüü,3noktaikonuu
-  void _showCustomMenu(BuildContext context, int index, GlobalKey key) {
-    final RenderBox renderBox =
-        key.currentContext!.findRenderObject() as RenderBox;
-    final Offset offset = renderBox.localToGlobal(Offset.zero);
-
-    showMenu(
-      elevation: 4.0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-      context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx +
-            renderBox.size.width, // Shift the menu to the right of the widget
-        offset.dy + renderBox.size.height, // Position it below the widget
-        offset
-            .dx, // Adjust this to the left side of the screen for the "right" alignment
-        offset.dy,
-      ),
-      items: [
-        PopupMenuItem(
-          child: ListTile(
-            leading: const Icon(Icons.photo),
-            title: const Text('Resim Ekle'),
-            onTap: () async {
-              Navigator.pop(context);
-              await _pickImage(index); // Resim seçme fonksiyonunu kullanıyoruz
-            },
-          ),
-        ),
-        PopupMenuItem(
-          child: ListTile(
-            leading: const Icon(Icons.paste),
-            title: const Text('Yapıştır'),
-            onTap: () async {
-              Navigator.pop(context);
-              ClipboardData? data = await Clipboard.getData('text/plain');
-              if (data != null) {
-                setState(() {
-                  _itemControllers[index].text = data.text ?? '';
-                });
-              }
-            },
-          ),
-        ),
-        PopupMenuItem(
-          child: ListTile(
-            leading: const Icon(Icons.list),
-            title: const Text('Liste Kutusu'),
-            onTap: () {
-              Navigator.pop(context);
-              showListBoxDialog(
-                  context,
-                  index,
-                  _itemControllers,
-                  options,
-                  _newOptionController,
-                  _isAddingNewOption,
-                  setState,
-                  _addNewOption, // Seçenek ekleme
-                  _removeOption // Seçenek silme
-                  );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  //seçenekler listboxundan seçenek silme
-  void _removeOption(int index) {
-    setState(() {
-      options.removeAt(index); // İlgili indeksteki elemanı sil
-    });
-  }
-
-//seçenekler listboxuna yeni seçenek ekleme
-  void _addNewOption(String value) async {
-    if (value.isNotEmpty && !options.contains(value)) {
-      setState(() {
-        options.add(value);
-        _newOptionController.clear();
-        _isAddingNewOption = false;
-      });
-
-      await _sqliteDatasource.addOption(value);
     }
   }
 
@@ -881,7 +813,12 @@ class _EditItemPageState extends State<EditItemPage> {
                                     )
                                   : IconButton(
                                       padding: EdgeInsets.zero,
-                                      onPressed: () => _pickImage(index),
+                                      onPressed: () => pickImage(
+                                        index,
+                                        _picker,
+                                        _selectedImages,
+                                        _existingImagePaths,
+                                      ),
                                       icon: Icon(Icons.image,
                                           size: 50,
                                           color: Colors.grey.shade400),
@@ -898,8 +835,38 @@ class _EditItemPageState extends State<EditItemPage> {
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                         onPressed: () {
-                                          _showCustomMenu(
-                                              context, index, _menuKeys[index]);
+                                          showCustomMenu(
+                                              context,
+                                              index,
+                                              _menuKeys[index],
+                                              _itemControllers, // EditItemPage'deki itemController listesi
+                                              _existingImagePaths, // EditItemPage'deki imagePaths listesi
+                                              _selectedImages, // selectedImages listesi burada kullanılabilir
+                                              _existingImagePaths, // existingImagePaths
+                                              _picker,
+                                              options,
+                                              _newOptionController,
+                                              _isAddingNewOption,
+                                              setState,
+                                              (String value) => _addNewOption(
+                                                  value), // addNewOption fonksiyonu kullanılıyor
+                                              (int index) => _removeOption(
+                                                  index), // removeOption fonksiyonu kullanılıyor
+                                              (String pastedText) {
+                                            // Panodan yapıştırılan veriyi item controller'a aktar
+                                            setState(() {
+                                              _itemControllers[index].text =
+                                                  pastedText;
+                                            });
+                                          }, (String imagePath) {
+                                            // Resim seçildikten sonra imagePaths ve selectedImages'ı güncelle
+                                            setState(() {
+                                              _existingImagePaths[index] =
+                                                  imagePath;
+                                              _selectedImages[index] = File(
+                                                  imagePath); // Seçilen resmin yolunu kaydet
+                                            });
+                                          });
                                         },
                                       ),
                                     ),
@@ -927,8 +894,6 @@ class _EditItemPageState extends State<EditItemPage> {
                   ),
                 ),
               ),
-              // Add Item button outside of ReorderableListView-
-              // Remove the Expanded wrapping around the GestureDetector
               GestureDetector(
                 onTap: _addItemField,
                 child: Container(

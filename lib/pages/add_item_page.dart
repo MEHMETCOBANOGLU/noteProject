@@ -1,4 +1,5 @@
 import 'package:Tablify/pages/aym_guide_page.dart';
+import 'package:Tablify/utility/%C4%B0tem_edit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:Tablify/data/database.dart';
@@ -154,35 +155,6 @@ class _AddItemPageState extends State<AddItemPage> {
         false;
   }
 
-// Resmi kalıcı olarak saklayan fonksiyon
-  Future<String> _saveImagePermanently(File image) async {
-    final directory = await getApplicationDocumentsDirectory(); // Kalıcı dizin
-    final fileName = image.path.split('/').last; // Dosya adını alıyoruz
-    final newPath = '${directory.path}/$fileName'; // Yeni dosya yolu
-
-    final savedImage =
-        await image.copy(newPath); // Resmi yeni yola kopyalıyoruz
-    return savedImage.path; // Kalıcı dosya yolunu döndürüyoruz
-  }
-
-  //itemler için resim seçme #resimseçmee,itemresimm
-  Future<void> _pickImage(int index) async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      File file = File(image.path);
-
-      String imagePath =
-          await _saveImagePermanently(file); // Resmi kaydediyoruz
-      print("Image path: $imagePath");
-
-      setState(() {
-        if (_imagePaths.length > index) {
-          _imagePaths[index] = imagePath; // Kalıcı dosya yolunu kaydediyoruz
-        }
-      });
-    }
-  }
-
   @override
   void dispose() {
     _scrollController.dispose();
@@ -300,7 +272,6 @@ class _AddItemPageState extends State<AddItemPage> {
           setState(() {
             _titleController.text = title;
             _subtitleController.text = subtitle;
-
             _itemControllers.clear();
             _menuKeys.clear();
             _imagePaths.clear();
@@ -387,12 +358,8 @@ class _AddItemPageState extends State<AddItemPage> {
     setState(() {
       _itemControllers.add(TextEditingController());
       _imagePaths.add(null);
-
-      // Add a new FocusNode for the new TextField
       _focusNodes.add(FocusNode());
       _focusNodes.last.requestFocus();
-
-      // Yeni item için GlobalKey ekle
       if (_menuKeys.length < _itemControllers.length) {
         _menuKeys.add(GlobalKey());
       }
@@ -406,78 +373,11 @@ class _AddItemPageState extends State<AddItemPage> {
         _itemControllers.removeAt(index);
         _imagePaths.removeAt(index);
         _focusNodes.removeAt(index);
-
-        // Silinen item için GlobalKey de kaldır
         if (_menuKeys.length > index) {
           _menuKeys.removeAt(index);
         }
       }
     });
-  }
-
-// 3 nokta ikonuna tıklandıgında açılan menu #3noktaikonmenüü,3noktaikonuu
-  void _showCustomMenu(BuildContext context, int index, GlobalKey key) {
-    final RenderBox renderBox =
-        key.currentContext!.findRenderObject() as RenderBox;
-    final Offset offset = renderBox.localToGlobal(Offset.zero);
-
-    showMenu(
-      elevation: 4.0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-      context: context,
-      position: RelativeRect.fromLTRB(
-        offset.dx,
-        offset.dy + renderBox.size.height,
-        offset.dx + renderBox.size.width,
-        offset.dy,
-      ),
-      items: [
-        PopupMenuItem(
-          child: ListTile(
-            leading: const Icon(Icons.photo),
-            title: const Text('Resim Ekle'),
-            onTap: () async {
-              Navigator.pop(context);
-              await _pickImage(index);
-            },
-          ),
-        ),
-        PopupMenuItem(
-          child: ListTile(
-            leading: const Icon(Icons.paste),
-            title: const Text('Yapıştır'),
-            onTap: () async {
-              Navigator.pop(context);
-              ClipboardData? data = await Clipboard.getData('text/plain');
-              if (data != null) {
-                setState(() {
-                  _itemControllers[index].text = data.text ?? '';
-                });
-              }
-            },
-          ),
-        ),
-        PopupMenuItem(
-          child: ListTile(
-            leading: const Icon(Icons.list),
-            title: const Text('Liste Kutusu'),
-            onTap: () {
-              Navigator.pop(context);
-              showListBoxDialog(
-                  context,
-                  index,
-                  _itemControllers,
-                  options,
-                  _newOptionController,
-                  _isAddingNewOption,
-                  setState,
-                  _addNewOption,
-                  _removeOption);
-            },
-          ),
-        ),
-      ],
-    );
   }
 
   //seçenekler listboxundan seçenek silme
@@ -682,7 +582,12 @@ class _AddItemPageState extends State<AddItemPage> {
                                           )
                                         : IconButton(
                                             padding: EdgeInsets.zero,
-                                            onPressed: () => _pickImage(index),
+                                            onPressed: () => pickImage(
+                                              index,
+                                              _picker,
+                                              null,
+                                              _imagePaths,
+                                            ),
                                             icon: Icon(Icons.image,
                                                 size: 50,
                                                 color: Colors.grey.shade400),
@@ -701,11 +606,36 @@ class _AddItemPageState extends State<AddItemPage> {
                                               key: _menuKeys[index],
                                               icon: const Icon(
                                                   Icons.more_vert_sharp),
-                                              onPressed: () => _showCustomMenu(
-                                                context,
-                                                index,
-                                                _menuKeys[index],
-                                              ),
+                                              onPressed: () => showCustomMenu(
+                                                  context,
+                                                  index,
+                                                  _menuKeys[index],
+                                                  _itemControllers, // AddItemPage'deki itemController listesi
+                                                  _imagePaths, // AddItemPage'deki imagePaths listesi
+                                                  null, // selectedImages kullanmıyorsanız null geçiyoruz
+                                                  _imagePaths, // existingImagePaths olarak da imagePaths kullanılmalı
+                                                  _picker,
+                                                  options,
+                                                  _newOptionController,
+                                                  _isAddingNewOption,
+                                                  setState,
+                                                  (String value) => _addNewOption(
+                                                      value), // addNewOption fonksiyonu kullanılıyor
+                                                  (int index) => _removeOption(
+                                                      index), // removeOption fonksiyonu kullanılıyor
+                                                  (String pastedText) {
+                                                // Panodan yapıştırılan veriyi item controller'a aktar
+                                                setState(() {
+                                                  _itemControllers[index].text =
+                                                      pastedText;
+                                                });
+                                              }, (String imagePath) {
+                                                // Resim ekleme işlemi
+                                                setState(() {
+                                                  _imagePaths[index] =
+                                                      imagePath;
+                                                });
+                                              }),
                                             ),
                                           ),
                                           Positioned(

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart';
 import 'package:Tablify/model/items.dart';
 import 'package:Tablify/utility/image_copy.dart';
 

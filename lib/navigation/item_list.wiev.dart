@@ -1,9 +1,12 @@
+import 'package:Tablify/data/database.dart';
+import 'package:Tablify/utility/%C4%B0tem_edit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:Tablify/aym/isimDilVeSecenek_duzenleyici.dart';
 import 'dart:io';
 import 'package:Tablify/model/items.dart';
 import 'package:Tablify/pages/show_image_page.dart';
+import 'package:image_picker/image_picker.dart';
 import '../aym/resim_kopyalama.dart';
 import '../pages/edit_item_page.dart';
 
@@ -30,12 +33,114 @@ class ListItem extends StatefulWidget {
 
 class _ListItemState extends State<ListItem> {
   late bool isLocalExpanded;
+  final ImagePicker _picker = ImagePicker();
+  final SQLiteDatasource _sqliteDatasource = SQLiteDatasource();
+
+  late List<TextEditingController> _itemControllers;
+  List<String?> _existingImagePaths = [];
+  List<File?> _selectedImages = [];
+  List<GlobalKey> _menuKeys = [];
+  List<FocusNode> _focusNodes = [];
+  late TextEditingController _subtitleController;
+  late TextEditingController _titleController;
 
   @override
   void initState() {
     super.initState();
-    // Her öğenin kendi genişleme durumu başlangıçta item'dan geliyor
+    _initializeLists();
+  }
+
+  @override
+  void didUpdateWidget(covariant ListItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.expandedValue.length !=
+            widget.item.expandedValue.length ||
+        oldWidget.item.expandedValue != widget.item.expandedValue) {
+      _updateLists();
+    }
+  }
+
+  void _initializeLists() {
     isLocalExpanded = widget.item.isExpanded;
+
+    _titleController = TextEditingController(text: widget.item.headerValue);
+    _subtitleController = TextEditingController(text: widget.item.subtitle);
+    _itemControllers = widget.item.expandedValue
+        .map((item) => TextEditingController(text: item))
+        .toList();
+
+    _existingImagePaths = List<String?>.generate(
+        widget.item.expandedValue.length,
+        (index) => widget.item.imageUrls != null &&
+                widget.item.imageUrls!.length > index
+            ? widget.item.imageUrls![index]
+            : null);
+
+    _selectedImages =
+        List<File?>.generate(widget.item.expandedValue.length, (index) => null);
+
+    _menuKeys = List.generate(_itemControllers.length, (index) => GlobalKey());
+
+    _focusNodes =
+        List.generate(_itemControllers.length, (index) => FocusNode());
+  }
+
+  void _updateLists() {
+    // Update _itemControllers
+    _itemControllers = widget.item.expandedValue
+        .map((item) => TextEditingController(text: item))
+        .toList();
+
+    // Update _existingImagePaths
+    _existingImagePaths = List<String?>.generate(
+        widget.item.expandedValue.length,
+        (index) => widget.item.imageUrls != null &&
+                widget.item.imageUrls!.length > index
+            ? widget.item.imageUrls![index]
+            : null);
+
+    // Update _selectedImages
+    _selectedImages =
+        List<File?>.generate(widget.item.expandedValue.length, (index) => null);
+
+    // Synchronize _menuKeys
+    if (_menuKeys.length < _itemControllers.length) {
+      _menuKeys.addAll(List.generate(
+          _itemControllers.length - _menuKeys.length, (index) => GlobalKey()));
+    } else if (_menuKeys.length > _itemControllers.length) {
+      _menuKeys = _menuKeys.sublist(0, _itemControllers.length);
+    }
+
+    // Synchronize _focusNodes
+    if (_focusNodes.length < _itemControllers.length) {
+      _focusNodes.addAll(List.generate(
+          _itemControllers.length - _focusNodes.length,
+          (index) => FocusNode()));
+    } else if (_focusNodes.length > _itemControllers.length) {
+      for (int i = widget.item.expandedValue.length;
+          i < _focusNodes.length;
+          i++) {
+        _focusNodes[i].dispose();
+      }
+      _focusNodes = _focusNodes.sublist(0, _itemControllers.length);
+    }
+
+    setState(() {}); // Trigger a rebuild with updated lists
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _subtitleController.dispose();
+    for (var controller in _itemControllers) {
+      controller.dispose();
+    }
+
+    for (var focusNode in _focusNodes) {
+      focusNode.dispose();
+    }
+
+    super.dispose();
   }
 
   // Metni panoya kopyalayan fonksiyon #kopyalamaa,textkopyalamaa
@@ -85,6 +190,16 @@ class _ListItemState extends State<ListItem> {
 
   @override
   Widget build(BuildContext context) {
+    // _menuKeys listesini _itemControllers listesinin uzunluğuna göre senkronize et
+    // Ensure all lists are synchronized with _itemControllers
+    // (This might be redundant if handled in didUpdateWidget)
+    if (_menuKeys.length < _itemControllers.length) {
+      _menuKeys.addAll(List.generate(
+          _itemControllers.length - _menuKeys.length, (index) => GlobalKey()));
+    } else if (_menuKeys.length > _itemControllers.length) {
+      _menuKeys = _menuKeys.sublist(0, _itemControllers.length);
+    }
+
     bool isExpanded = widget.isGlobalExpanded || widget.isLocalExpanded;
 
     return ExpansionPanelList(
@@ -94,17 +209,8 @@ class _ListItemState extends State<ListItem> {
           widget.onExpandedChanged(isLocalExpanded);
         });
       },
-      // expandedHeaderPadding: const EdgeInsets.only(
-      //   left: 5,
-      //   right: 5,
-      // ),
       children: [
         ExpansionPanel(
-          // backgroundColor: Colors.red,
-          // splashColor: Colors.red, //expand ikonuna baınca barın rengisplash değişiyor
-          // highlightColor: Colors.red,//expand ikonuna baınca barın rengisplash değişiyor
-          // splashColor: Colors.red,
-
           hasIcon: false,
           canTapOnHeader: true,
           headerBuilder: (BuildContext context, bool expanded) {
@@ -126,10 +232,7 @@ class _ListItemState extends State<ListItem> {
                               ? null
                               : Text(widget.item.subtitle!),
                           visualDensity: VisualDensity.compact,
-                          onLongPress: () async {
-                            // Your existing code
-                          },
-                          onTap: () async {
+                          onTap: () {
                             setState(() {
                               isLocalExpanded = !isExpanded;
                               widget.onExpandedChanged(isLocalExpanded);
@@ -149,7 +252,7 @@ class _ListItemState extends State<ListItem> {
                         color: Colors.grey,
                         padding: EdgeInsets.zero,
                         icon: Icon(
-                          expanded ? Icons.expand_less : Icons.expand_more,
+                          isExpanded ? Icons.expand_less : Icons.expand_more,
                         ),
                         onPressed: () {
                           setState(() {
@@ -181,9 +284,7 @@ class _ListItemState extends State<ListItem> {
               ],
             );
           },
-
           body: Container(
-            // color: Colors.green[50],
             child: Column(
               children: widget.item.expandedValue.asMap().entries.map((entry) {
                 int idx = entry.key;
@@ -212,16 +313,16 @@ class _ListItemState extends State<ListItem> {
                         minTileHeight: 10,
                         title: GestureDetector(
                           onLongPress: () {
-                            // Uzun basıldığında resmi ve texti panoya kopyalama #imagecopyy,textcopyy
+                            // Uzun basıldığında resmi ve texti panoya kopyalama
                             if (imageUrl != null && imageUrl.isNotEmpty) {
                               copyImageToClipboard(context, imageUrl);
                             }
                             _copyText(text);
                           },
-                          child: getColoredDisplayText(text), //#displaytextt
+                          child: getColoredDisplayText(text),
                         ),
                         leading: GestureDetector(
-                          // Resmi görüntüleme sayfasına gonderme
+                          // Resmi görüntüleme sayfasına gönderme
                           onTap: imageUrl != null
                               ? () {
                                   Navigator.push(
@@ -250,19 +351,41 @@ class _ListItemState extends State<ListItem> {
                                 )
                               : GestureDetector(
                                   onTap: () {
-                                    // // Resim aym. resim seçip kopyalama #resimaymm,aymm
-                                    // selectAndCopyImageDialog(
-                                    //     context, widget.item.expandedValue[idx]
-                                    //     );
+                                    // Resim seçip kopyalama işlemi
                                   },
-                                  child: const SizedBox()
-                                  // size: 50, color: Colors.grey.shade400),
-                                  ),
+                                  child: const SizedBox(),
+                                ),
                         ),
                         visualDensity: VisualDensity.compact,
                         dense: true,
+                        onLongPress: () {
+                          if (idx < _menuKeys.length) {
+                            showCustomEditMenu(
+                                context,
+                                idx,
+                                _menuKeys[idx],
+                                text,
+                                _picker,
+                                _selectedImages,
+                                _existingImagePaths,
+                                imageUrl,
+                                _itemControllers,
+                                setState,
+                                _menuKeys, // Pass _menuKeys
+                                _focusNodes, // Pass _focusNodes
+                                _sqliteDatasource, // Pass _sqliteDatasource
+                                widget.item, // Pass widget.item
+                                widget
+                                    .onTableEdited, // Pass the callback directly
+                                _titleController,
+                                _subtitleController);
+                          } else {
+                            // Hata durumunda yapılacak işlemler
+                            print('Invalid index for _menuKeys: $idx');
+                          }
+                        },
                         onTap: () {
-                          //İsim, dil, seçenekler ve resimgibi bilgileri düzenleme sayfasına gonderme #aymm,isimaymm,seçenekaymm,dilaymm
+                          // İsim, dil, seçenekler ve resim gibi bilgileri düzenleme sayfasına gönderme
                           print(text);
                           print(idx);
                           handleTapOnText(
