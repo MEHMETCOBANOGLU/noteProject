@@ -179,7 +179,7 @@ class _AddItemPageState extends State<AddItemPage> {
     }
   }
 
-  //Tablo ekleme sayfasındaki tümünü kopyala butonu #copyall,tümünükopyalaa
+  //Tablo ekleme sayfasındaki tümünü kopyala butonu #copyall,copyalll,copyy,tümünükopyalaa
   void _copyAllToClipboard() async {
     var items = await Future.wait(_itemControllers.map((controller) async {
       int index = _itemControllers.indexOf(controller);
