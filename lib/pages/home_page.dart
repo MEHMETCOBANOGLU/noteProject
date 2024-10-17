@@ -68,6 +68,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.initState();
     _loadTabs();
     _scrollControllers = [];
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    _tabController.dispose();
+    for (var controller in _scrollControllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      // The UI will rebuild and apply the search filter
+    });
   }
 
   // _loadTabs fonksiyonunun güncellenmiş hali
@@ -322,14 +340,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
-  @override
-  void dispose() {
-    for (var controller in _scrollControllers) {
-      controller.dispose();
-    }
-    _tabController.dispose();
-    super.dispose();
-  }
 ///////////////////////
 
   // Export Popup açan fonksiyon
@@ -1125,8 +1135,35 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   //listeyi oluşturmak için bir widget oluşturuyoruz
   Widget _buildPanel(TabData tabData) {
+    String searchQuery = _searchController.text.toLowerCase();
+
+    List<Item> filteredItems = tabData.data.where((item) {
+      bool matchesTitle = item.headerValue.toLowerCase().contains(searchQuery);
+      bool matchesSubtitle = item.subtitle!.toLowerCase().contains(searchQuery);
+
+      bool matchesExpandValue = item.expandedValue
+          .any((value) => value.toLowerCase().contains(searchQuery));
+
+      return matchesTitle || matchesSubtitle || matchesExpandValue;
+    }).toList();
+
+    if (filteredItems.isEmpty) {
+      if (searchQuery.isNotEmpty) {
+        // Arama yapıldı ancak sonuç bulunamadı
+        return Center(
+          child: Text(
+            'Aramanızla eşleşen sonuç bulunamadı.',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        );
+      } else {
+        // Veri yok ve arama yapılmadı, boş bir widget döndürüyoruz
+        return Container();
+      }
+    }
+
     return Column(
-      children: tabData.data.map<Widget>((Item item) {
+      children: filteredItems.map<Widget>((Item item) {
         return Padding(
           padding: const EdgeInsets.only(
               right: 2.0, left: 2.0, bottom: 5.0, top: 2.0),
