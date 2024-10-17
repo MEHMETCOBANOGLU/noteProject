@@ -358,6 +358,7 @@ class _ListItemState extends State<ListItem> {
                         ),
                         visualDensity: VisualDensity.compact,
                         dense: true,
+                        
                         onLongPress: () {
                           if (idx < _menuKeys.length) {
                             showCustomEditMenu(
