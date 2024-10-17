@@ -1,4 +1,4 @@
-package com.example.proje1
+package com.devsecure.mobile
 
 import android.content.ClipData
 import android.content.ClipboardManager

@@ -23,7 +23,7 @@ Future<void> _copyText(BuildContext context, String text) async {
 
 Future<void> handleTapOnText(BuildContext context, String text, int index,
     Item item, Function() onTableEdited) async {
-  // Genel regex deseni
+  // Genel regex deseni |
   final RegExp tagPattern =
       RegExp(r'\[([\p{L}\p{M}\p{N}_]+)(?::([^\]]*))?\]', unicode: true);
 

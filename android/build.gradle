@@ -1,7 +1,18 @@
+buildscript {
+    repositories {
+        google()  // Google Play hizmetleri için gerekli
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.0.0' // Mevcut Gradle sürümünüz
+        classpath 'com.google.gms:google-services:4.3.10'  // Firebase Google Services için classpath
+    }
+}
+
 allprojects {
     repositories {
-        google()
-        mavenCentral()
+        google()  // Google Play hizmetleri için gerekli
+        mavenCentral()  // Maven Central'dan bağımlılıklar
     }
 }
 
