@@ -26,37 +26,38 @@ class SQLiteDatasource {
 
       _database = await openDatabase(
         path,
-        version: 5, // Yeni tablo eklediğimiz için versiyonu artırıyoruz
+        version: 6,
         onCreate: (db, version) async {
           print("Creating tables...");
           await db.execute('''
-    CREATE TABLE notes (
-      id TEXT PRIMARY KEY,
-      title TEXT,
-      subtitle TEXT,
-      items TEXT,
-      imageUrls BLOB,
-      isExpanded INTEGER,
-      "order" INTEGER,
-      tabId TEXT
-    )
-  ''');
+          CREATE TABLE notes (
+            id TEXT PRIMARY KEY,
+            title TEXT,
+            subtitle TEXT,
+            items TEXT,
+            imageUrls BLOB,
+            isExpanded INTEGER,
+            "order" INTEGER,
+            tabId TEXT
+          )
+        ''');
 
           // Yeni options tablosunu oluştur
           await db.execute('''
-    CREATE TABLE IF NOT EXISTS options (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      option_text TEXT NOT NULL
-    )
-  ''');
+          CREATE TABLE IF NOT EXISTS options (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            option_text TEXT NOT NULL
+          )
+        ''');
 
           // Yeni tabs tablosunu oluştur
           await db.execute('''
-    CREATE TABLE IF NOT EXISTS tabs (
-      id TEXT PRIMARY KEY,
-      name TEXT
-    )
-  ''');
+          CREATE TABLE IF NOT EXISTS tabs (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            "order" INTEGER
+          )
+        ''');
 
           // Varsayılan seçenekleri ekleyin
           await db.insert('options', {
@@ -77,7 +78,6 @@ class SQLiteDatasource {
 
           print("Tables and default options created successfully");
         },
-
         onUpgrade: (db, oldVersion, newVersion) async {
           print("Upgrading database from version $oldVersion to $newVersion");
 
@@ -85,11 +85,11 @@ class SQLiteDatasource {
           if (oldVersion < 2) {
             print("Applying upgrade to version 2: Creating 'options' table.");
             await db.execute('''
-      CREATE TABLE IF NOT EXISTS options (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        option_text TEXT NOT NULL
-      )
-    ''');
+            CREATE TABLE IF NOT EXISTS options (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              option_text TEXT NOT NULL
+            )
+          ''');
             // Varsayılan seçenekleri ekleyin
             await db.insert('options', {
               'option_text':
@@ -123,13 +123,15 @@ class SQLiteDatasource {
             print(
                 "Applying upgrade to version 4: Creating 'tabs' table and inserting default tab.");
             await db.execute('''
-      CREATE TABLE IF NOT EXISTS tabs (
-        id TEXT PRIMARY KEY,
-        name TEXT
-      )
-    ''');
+            CREATE TABLE IF NOT EXISTS tabs (
+              id TEXT PRIMARY KEY,
+              name TEXT,
+              "order" INTEGER
+            )
+          ''');
             // Varsayılan 'Tab 1' sekmesini oluşturun
-            await db.insert('tabs', {'id': 'tab1', 'name': 'Tab 1'});
+            await db
+                .insert('tabs', {'id': 'tab1', 'name': 'Tab 1', 'order': 0});
           }
 
           // Sürüm 5'e yükseltme işlemleri (Yeni düzeltmeler için)
@@ -138,51 +140,59 @@ class SQLiteDatasource {
                 "Applying upgrade to version 5: Correcting 'notes' table schema.");
             // 'notes' tablosunu yedeklemek için geçici tablo oluşturun
             await db.execute('''
-      CREATE TABLE notes_backup (
-        id TEXT PRIMARY KEY,
-        title TEXT,
-        subtitle TEXT,
-        items TEXT,
-        imageUrls BLOB,
-        isExpanded INTEGER,
-        "order" INTEGER,
-        tabId TEXT
-      )
-    ''');
+            CREATE TABLE notes_backup (
+              id TEXT PRIMARY KEY,
+              title TEXT,
+              subtitle TEXT,
+              items TEXT,
+              imageUrls BLOB,
+              isExpanded INTEGER,
+              "order" INTEGER,
+              tabId TEXT
+            )
+          ''');
 
             // Verileri yedek tabloya taşıyın
             await db.execute('''
-      INSERT INTO notes_backup (id, title, subtitle, items, imageUrls, isExpanded, "order", tabId)
-      SELECT id, title, subtitle, items, imageUrls, isExpanded, "order", tabId FROM notes
-    ''');
+            INSERT INTO notes_backup (id, title, subtitle, items, imageUrls, isExpanded, "order", tabId)
+            SELECT id, title, subtitle, items, imageUrls, isExpanded, "order", tabId FROM notes
+          ''');
 
             // Orijinal 'notes' tablosunu silin
             await db.execute('DROP TABLE notes');
 
             // Doğru şemaya sahip yeni 'notes' tablosunu oluşturun
             await db.execute('''
-      CREATE TABLE notes (
-        id TEXT PRIMARY KEY,
-        title TEXT,
-        subtitle TEXT,
-        items TEXT,
-        imageUrls BLOB,
-        isExpanded INTEGER,
-        "order" INTEGER,
-        tabId TEXT
-      )
-    ''');
+            CREATE TABLE notes (
+              id TEXT PRIMARY KEY,
+              title TEXT,
+              subtitle TEXT,
+              items TEXT,
+              imageUrls BLOB,
+              isExpanded INTEGER,
+              "order" INTEGER,
+              tabId TEXT
+            )
+          ''');
 
             // Verileri yedek tablodan yeni tabloya geri taşıyın
             await db.execute('''
-      INSERT INTO notes (id, title, subtitle, items, imageUrls, isExpanded, "order", tabId)
-      SELECT id, title, subtitle, items, imageUrls, isExpanded, "order", tabId FROM notes_backup
-    ''');
+            INSERT INTO notes (id, title, subtitle, items, imageUrls, isExpanded, "order", tabId)
+            SELECT id, title, subtitle, items, imageUrls, isExpanded, "order", tabId FROM notes_backup
+          ''');
 
             // Yedek tabloyu silin
             await db.execute('DROP TABLE notes_backup');
 
             print("'notes' tablosu başarıyla güncellendi.");
+          }
+
+          if (oldVersion < 6) {
+            print(
+                "Applying upgrade to version 6: Adding 'order' column to 'tabs' table.");
+            await db.execute(
+                'ALTER TABLE tabs ADD COLUMN "order" INTEGER DEFAULT 0');
+            print("'order' column added to 'tabs' table.");
           }
 
           print(
@@ -477,12 +487,19 @@ class SQLiteDatasource {
 
   // Sekme ekleme fonksiyonu
   Future<void> addTab(TabItem tabItem) async {
-    await _database.insert('tabs', tabItem.toMap());
+    await _database.insert(
+      'tabs',
+      tabItem.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   // Sekmeleri alma fonksiyonu
   Future<List<TabItem>> getTabs() async {
-    final List<Map<String, dynamic>> maps = await _database.query('tabs');
+    final List<Map<String, dynamic>> maps = await _database.query(
+      'tabs',
+      orderBy: '"order" ASC', // 'order' sütununu çift tırnak içine aldık
+    );
     return List.generate(maps.length, (i) {
       return TabItem.fromMap(maps[i]);
     });
@@ -511,6 +528,15 @@ class SQLiteDatasource {
     await _database.update(
       'tabs',
       {'name': newName},
+      where: 'id = ?',
+      whereArgs: [tabId],
+    );
+  }
+
+  Future<void> updateTabOrder(String tabId, int order) async {
+    await _database.update(
+      'tabs',
+      {'order': order},
       where: 'id = ?',
       whereArgs: [tabId],
     );

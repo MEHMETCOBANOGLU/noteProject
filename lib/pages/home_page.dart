@@ -1,6 +1,7 @@
 //////////////////////////////////////////////2///////////
 library;
 
+import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -98,10 +99,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         // Varsayılan 'Tab 1' oluştur
         String id = 'tab1';
         String name = 'Tab 1';
-        TabItem tabItem = TabItem(id: id, name: name);
+        TabItem tabItem = TabItem(id: id, name: name, order: 0);
         _tabs = [tabItem];
         _sqliteDatasource.addTab(tabItem);
       } else {
+        // Sekmeleri 'order' alanına göre sıralıyoruz
+        tabs.sort((a, b) => a.order.compareTo(b.order));
         _tabs = tabs;
       }
 
@@ -191,7 +194,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         // Tüm sekmeler kapatılmışsa varsayılan 'Tab 1' ekliyoruz
         String id = 'tab1';
         String name = 'Tab 1';
-        TabItem tabItem = TabItem(id: id, name: name);
+        TabItem tabItem = TabItem(id: id, name: name, order: 0);
         _tabs.add(tabItem);
         _tabDataList
             .add(TabData(data: [], localExpandedStates: {}, allExpanded: true));
@@ -260,32 +263,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       initialIndex: newIndex,
     );
 
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
-        if (_tabController.index == _tabs.length) {
-          // '+' butonuna tıklandı, yeni sekme ekle
-          _addNewTab();
-        } else {
-          _loadData(_tabController.index);
-          setState(() {}); // Sekme vurgusunu güncelle
-        }
-      } else {
-        // Kullanıcı sekmeler arasında kaydırma yaptı
-        if (_tabController.index < _tabs.length) {
-          _loadData(_tabController.index);
-          setState(() {}); // Sekme vurgusunu güncelle
-        }
-      }
-    });
+    _tabController.addListener(_tabControllerListener);
 
-    setState(() {}); // TabController değişikliğini UI'ye bildir
+    setState(() {}); // UI'yi yeniden çizmek için
   }
 
   void _addNewTab() async {
-    int newTabIndex = _tabs.length + 1;
+    int newOrder = _tabs.length;
     String id = const Uuid().v4();
-    String name = 'Tab $newTabIndex';
-    TabItem tabItem = TabItem(id: id, name: name);
+    String name = 'Tab ${newOrder + 1}';
+    TabItem tabItem = TabItem(id: id, name: name, order: newOrder);
 
     await _sqliteDatasource.addTab(tabItem);
 
@@ -640,28 +627,26 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
             // Veritabanındaki mevcut sekmeleri al
             List<TabItem> existingTabs = await _sqliteDatasource.getTabs();
+            List<TabItem> newTabs = [];
 
             for (String tabName in jsonData.keys) {
               // Mevcut sekme var mı kontrol et
-              TabItem? existingTab = existingTabs.firstWhere(
+              TabItem? existingTab = existingTabs.firstWhereOrNull(
                 (tab) => tab.name == tabName,
-                orElse: () => TabItem(id: const Uuid().v4(), name: ''),
               );
 
               // Eğer sekme zaten varsa, onu kullan, yoksa yeni sekme oluştur
               String tabId;
-              if (existingTab.name.isNotEmpty) {
+              if (existingTab != null) {
                 tabId = existingTab.id;
               } else {
                 tabId = const Uuid().v4();
-                TabItem newTab = TabItem(id: tabId, name: tabName);
+                int newOrder =
+                    _tabs.length + newTabs.length; // Sıralamayı ayarla
+                TabItem newTab =
+                    TabItem(id: tabId, name: tabName, order: newOrder);
                 await _sqliteDatasource.addTab(newTab);
-                setState(() {
-                  _tabs.add(newTab);
-                  _tabDataList.add(TabData(
-                      data: [], localExpandedStates: {}, allExpanded: true));
-                  _scrollControllers.add(ScrollController());
-                });
+                newTabs.add(newTab);
               }
 
               // İlgili sekmeye ait notları içeri aktar
@@ -672,24 +657,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 await _sqliteDatasource.addOrUpdateNote(newItem);
               }
             }
-            _updateTabController();
-          }
 
-          // Resim dosyalarını ilgili klasöre kaydediyoruz
-          if (filename.startsWith('images/')) {
-            final imageFile = File('${tempDir.path}/$filename');
-            await imageFile.writeAsBytes(file.content);
+            // Tüm yeni sekmeleri ve verileri ekledikten sonra
+            setState(() {
+              _tabs.addAll(newTabs);
+              _tabDataList.addAll(newTabs
+                  .map((tab) => TabData(
+                      data: [], localExpandedStates: {}, allExpanded: true))
+                  .toList());
+              _scrollControllers
+                  .addAll(newTabs.map((tab) => ScrollController()).toList());
+
+              // TabController'ı güncelle
+              _updateTabController();
+              _loadTabs();
+            });
+
+            // İçe aktarma tamamlandıktan sonra başarı mesajı göster
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
+            );
           }
         }
       }
-
-      // İçe aktarma tamamlandıktan sonra başarı mesajı göster
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
-      );
-
-      // Verileri yeniden yükle
-      _loadTabs();
     } catch (e) {
       print('Veri içe aktarılırken hata oluştu: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -716,29 +706,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
         // SQLite'den mevcut sekmeleri al
         List<TabItem> existingTabs = await _sqliteDatasource.getTabs();
+        List<TabItem> newTabs = [];
 
         for (String tabName in jsonData.keys) {
           // Mevcut sekme var mı kontrol et
-          TabItem? existingTab = existingTabs.firstWhere(
+          TabItem? existingTab = existingTabs.firstWhereOrNull(
             (tab) => tab.name == tabName,
-            orElse: () => TabItem(id: const Uuid().v4(), name: ''),
           );
 
           // Eğer sekme zaten varsa, onu kullan, yoksa yeni sekme oluştur
           String tabId;
-          if (existingTab.name.isNotEmpty) {
+          if (existingTab != null) {
             tabId = existingTab.id;
           } else {
             tabId = const Uuid().v4();
-            TabItem newTab = TabItem(id: tabId, name: tabName);
+            int newOrder = _tabs.length + newTabs.length; // Sıralamayı ayarla
+            TabItem newTab = TabItem(id: tabId, name: tabName, order: newOrder);
             await _sqliteDatasource.addTab(newTab);
-            setState(() {
-              _tabs.add(newTab);
-              _tabDataList.add(TabData(
-                  data: [], localExpandedStates: {}, allExpanded: true));
-              _scrollControllers
-                  .add(ScrollController()); // Yeni ScrollController ekliyoruz
-            });
+            newTabs.add(newTab);
           }
 
           // İlgili sekmeye ait notları içeri aktar
@@ -750,14 +735,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           }
         }
 
+        // Tüm yeni sekmeleri ve verileri ekledikten sonra
+        setState(() {
+          _tabs.addAll(newTabs);
+          _tabDataList.addAll(newTabs
+              .map((tab) =>
+                  TabData(data: [], localExpandedStates: {}, allExpanded: true))
+              .toList());
+          _scrollControllers
+              .addAll(newTabs.map((tab) => ScrollController()).toList());
+
+          // TabController'ı güncelle
+          _updateTabController();
+          _loadTabs();
+        });
+
         // Başarı mesajı
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
         );
-
-        _updateTabController();
-        // Verileri yeniden yükle
-        _loadTabs();
       }
     } catch (e) {
       // Hata mesajı göster
@@ -879,7 +875,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       // Tab 1 varsayılan sekmesini tekrar oluştur
       String id = 'tab1';
       String name = 'Tab 1';
-      TabItem tabItem = TabItem(id: id, name: name);
+      TabItem tabItem = TabItem(id: id, name: name, order: 0);
       await _sqliteDatasource.addTab(tabItem);
 
       setState(() {
@@ -910,29 +906,32 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  void _onReorderTabs(int oldIndex, int newIndex) {
-    setState(() {
-      // Eğer yeniIndex, oldIndex'ten büyükse yeniIndex'i bir azaltmak gerekebilir
-      // çünkü kaldırma işlemi sonrasında liste kısalır
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
+  void _onReorderTabs(int oldIndex, int newIndex) async {
+    print('ESKİ sıra: $_tabs');
 
-      // Sekmeyi ve ona ait veriyi listelerden kaldır ve yeni konuma ekle
+    setState(() {
       final TabItem movedTab = _tabs.removeAt(oldIndex);
       _tabs.insert(newIndex, movedTab);
 
       final TabData movedTabData = _tabDataList.removeAt(oldIndex);
       _tabDataList.insert(newIndex, movedTabData);
 
-      // ScrollController'ı da aynı şekilde yeniden sırala
       final ScrollController movedScrollController =
           _scrollControllers.removeAt(oldIndex);
       _scrollControllers.insert(newIndex, movedScrollController);
-
-      // TabController'ı güncelle
-      _updateTabController(initialIndex: newIndex);
     });
+
+    // 'order' alanlarını güncelleme ve veritabanına kaydetme
+    for (int i = 0; i < _tabs.length; i++) {
+      TabItem tab = _tabs[i];
+      tab.order = i;
+      await _sqliteDatasource.updateTabOrder(tab.id, tab.order);
+    }
+
+    // TabController'ı güncelleme
+    _updateTabController(initialIndex: newIndex);
+
+    print('Yeni sıra: $_tabs');
   }
 
   Future<void> _showRenameTabDialog(int index) async {
@@ -993,7 +992,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _tabs[index].name = newName;
     });
 
-    // Veri tabanında sekme ismini güncelle
+    // Veritabanında sekme ismini güncelle
     await _sqliteDatasource.updateTabName(_tabs[index].id, newName);
   }
 
@@ -1011,26 +1010,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 children: [
                   Expanded(
                     child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 5.0),
-                        child: RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
-                                fontSize: 16, color: Colors.black),
-                            children: <TextSpan>[
-                              const TextSpan(
-                                  text:
-                                      'Yeni bir tablo eklemek ister misiniz? '),
-                              TextSpan(
-                                text: 'Ekle',
-                                style: const TextStyle(
-                                  color: Colors.green,
-                                ),
-                                recognizer: TapGestureRecognizer()
-                                  ..onTap = _navigateAndAddItem,
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                              fontSize: 16, color: Colors.black),
+                          children: <TextSpan>[
+                            const TextSpan(
+                                text: 'Yeni bir tablo eklemek ister misiniz? '),
+                            TextSpan(
+                              text: 'Ekle',
+                              style: const TextStyle(
+                                color: Colors.green,
                               ),
-                            ],
-                          ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = _navigateAndAddItem,
+                            ),
+                          ],
                         ),
                       ),
                     ),

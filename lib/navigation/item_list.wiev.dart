@@ -284,136 +284,119 @@ class _ListItemState extends State<ListItem> {
               ],
             );
           },
-          body: Container(
-            child: Column(
-              children: widget.item.expandedValue.asMap().entries.map((entry) {
-                int idx = entry.key;
-                String text = entry.value;
-                String? imageUrl = widget.item.imageUrls != null &&
-                        widget.item.imageUrls!.length > idx &&
-                        widget.item.imageUrls![idx].isNotEmpty
-                    ? widget.item.imageUrls![idx]
-                    : null;
-                // Metin uzunluğu ve görsel durumuna göre padding ayarla
-                double bottomPadding = (text.isEmpty || text.length < 20) &&
-                        imageUrl == null
-                    ? 10.0 // Eğer metin kısa veya boşsa, görsel varsa daha fazla padding ekliyoruz
-                    : 1.0; // Aksi halde varsayılan padding
-                return Padding(
-                  padding: EdgeInsets.only(bottom: bottomPadding),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        focusColor: Colors.green[50],
-                        hoverColor: Colors.green[50],
-                        splashColor: Colors.green[50],
-                        horizontalTitleGap: 10,
-                        minVerticalPadding: 10,
-                        minLeadingWidth: 10,
-                        minTileHeight: 10,
-                        title: GestureDetector(
-                          onLongPress: () {
-                            // Uzun basıldığında resmi ve texti panoya kopyalama
-                            if (imageUrl != null && imageUrl.isNotEmpty) {
-                              copyImageToClipboard(context, imageUrl);
-                            }
-                            _copyText(text);
-                          },
-                          child: getColoredDisplayText(text),
-                        ),
-                        leading: GestureDetector(
-                          // Resmi görüntüleme sayfasına gönderme
-                          onTap: imageUrl != null
-                              ? () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ShowImage(
-                                        imagePaths: widget.item.imageUrls ?? [],
-                                        item: widget.item,
-                                        initialIndex: idx,
-                                      ),
-                                    ),
-                                  );
-                                }
-                              : null,
-                          child: imageUrl != null &&
-                                  imageUrl.isNotEmpty &&
-                                  File(imageUrl).existsSync()
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(3.0),
-                                  child: Image.file(
-                                    File(imageUrl),
-                                    width: 50,
-                                    height: 50,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : GestureDetector(
-                                  onTap: () {
-                                    // Resim seçip kopyalama işlemi
-                                  },
-                                  child: const SizedBox(),
-                                ),
-                        ),
-                        visualDensity: VisualDensity.compact,
-                        dense: true,
-                        
-                        onLongPress: () {
-                          if (idx < _menuKeys.length) {
-                            showCustomEditMenu(
-                                context,
-                                idx,
-                                _menuKeys[idx],
-                                text,
-                                _picker,
-                                _selectedImages,
-                                _existingImagePaths,
-                                imageUrl,
-                                _itemControllers,
-                                setState,
-                                _menuKeys, // Pass _menuKeys
-                                _focusNodes, // Pass _focusNodes
-                                _sqliteDatasource, // Pass _sqliteDatasource
-                                widget.item, // Pass widget.item
-                                widget
-                                    .onTableEdited, // Pass the callback directly
-                                _titleController,
-                                _subtitleController);
-                          } else {
-                            // Hata durumunda yapılacak işlemler
-                            print('Invalid index for _menuKeys: $idx');
-                          }
-                        },
-                        onTap: () {
-                          // İsim, dil, seçenekler ve resim gibi bilgileri düzenleme sayfasına gönderme
-                          print(text);
-                          print(idx);
-                          handleTapOnText(
-                            context,
-                            text,
-                            idx,
-                            widget.item,
-                            () {
-                              setState(() {}); // onTableEdited çağrılıyor
-                            },
-                          );
-                        },
+          body: Column(
+            children: widget.item.expandedValue.asMap().entries.map((entry) {
+              int idx = entry.key;
+              String text = entry.value;
+              String? imageUrl = widget.item.imageUrls != null &&
+                      widget.item.imageUrls!.length > idx &&
+                      widget.item.imageUrls![idx].isNotEmpty
+                  ? widget.item.imageUrls![idx]
+                  : null;
+
+              return GestureDetector(
+                // İsim, dil, seçenekler ve resim gibi bilgileri düzenleme sayfasına gönderme
+                onTap: () {
+                  handleTapOnText(
+                    context,
+                    text,
+                    idx,
+                    widget.item,
+                    () {
+                      setState(() {}); // onTableEdited çağrılıyor
+                    },
+                  );
+                },
+                // Uzun basıldığında resmi ve texti panoya kopyalama
+                onLongPress: () {
+                  if (imageUrl != null && imageUrl.isNotEmpty) {
+                    copyImageToClipboard(context, imageUrl);
+                  }
+                  _copyText(text);
+                },
+                // item edit penceresine yönlendirme
+                onHorizontalDragStart: (DragStartDetails details) {
+                  if (idx < _menuKeys.length) {
+                    showCustomEditMenu(
+                      context,
+                      idx,
+                      _menuKeys[idx],
+                      text,
+                      _picker,
+                      _selectedImages,
+                      _existingImagePaths,
+                      imageUrl,
+                      _itemControllers,
+                      setState,
+                      _menuKeys, // Pass _menuKeys
+                      _focusNodes, // Pass _focusNodes
+                      _sqliteDatasource, // Pass _sqliteDatasource
+                      widget.item, // Pass widget.item
+                      widget.onTableEdited, // Pass the callback directly
+                      _titleController,
+                      _subtitleController,
+                    );
+                  } else {
+                    // Hata durumunda yapılacak işlemler
+                    print('Invalid index for _menuKeys: $idx');
+                  }
+                },
+                child: Column(
+                  children: [
+                    ListTile(
+                      focusColor: Colors.green[50],
+                      hoverColor: Colors.green[50],
+                      splashColor: Colors.green[50],
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 5.0,
                       ),
-                      if (widget.item.expandedValue.length > 1 &&
-                          idx < widget.item.expandedValue.length - 1)
-                        Divider(
-                          height: 28,
-                          thickness: 2,
-                          indent: 28,
-                          endIndent: 28,
-                          color: Colors.green[50],
-                        ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
+                      title: GestureDetector(
+                        child: getColoredDisplayText(text),
+                      ),
+                      leading: imageUrl != null &&
+                              imageUrl.isNotEmpty &&
+                              File(imageUrl).existsSync()
+                          ? GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ShowImage(
+                                      imagePaths: widget.item.imageUrls ?? [],
+                                      item: widget.item,
+                                      initialIndex: idx,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(3.0),
+                                child: Image.file(
+                                  File(imageUrl),
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            )
+                          : null,
+                      visualDensity: VisualDensity.compact,
+                      dense: true,
+                    ),
+                    if (widget.item.expandedValue.length > 1 &&
+                        idx < widget.item.expandedValue.length - 1)
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        indent: 16,
+                        endIndent: 16,
+                        color: Colors.grey[300],
+                      ),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
           isExpanded: isExpanded,
         ),
