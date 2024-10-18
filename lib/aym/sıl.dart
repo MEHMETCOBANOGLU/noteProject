@@ -1,16 +1,20 @@
 //////////////////////////////////////////////2///////////
 library;
 
+import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:motion_tab_bar/MotionTabBar.dart';
+import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:Tablify/data/database.dart';
 import 'package:Tablify/model/items.dart';
 import 'package:Tablify/pages/add_item_page.dart';
 import 'package:reorderables/reorderables.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 import '../model/TabItem.dart';
 import '../navigation/item_list.wiev.dart';
@@ -18,6 +22,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:archive/archive_io.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+
+import '../utility/export_operations.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -40,6 +47,8 @@ class TabData {
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final SQLiteDatasource _sqliteDatasource = SQLiteDatasource();
+  final FirebaseStorage _storage = FirebaseStorage.instance;
+
   final bool _allExpanded = true;
   final List<Item> _data = [];
   final Map<String, bool> _localExpandedStates = {};
@@ -50,6 +59,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   List<TabData> _tabDataList = [];
   bool _isLoading = true;
 
+  bool _isSearching = false;
+  TextEditingController _searchController = TextEditingController();
+
   List<ScrollController> _scrollControllers = [];
 
   @override
@@ -57,6 +69,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.initState();
     _loadTabs();
     _scrollControllers = [];
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    _tabController.dispose();
+    for (var controller in _scrollControllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      // The UI will rebuild and apply the search filter
+    });
   }
 
   // _loadTabs fonksiyonunun güncellenmiş hali
@@ -69,10 +99,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         // Varsayılan 'Tab 1' oluştur
         String id = 'tab1';
         String name = 'Tab 1';
-        TabItem tabItem = TabItem(id: id, name: name);
+        TabItem tabItem = TabItem(id: id, name: name, order: 0);
         _tabs = [tabItem];
         _sqliteDatasource.addTab(tabItem);
       } else {
+        // Sekmeleri 'order' alanına göre sıralıyoruz
+        tabs.sort((a, b) => a.order.compareTo(b.order));
         _tabs = tabs;
       }
 
@@ -162,7 +194,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         // Tüm sekmeler kapatılmışsa varsayılan 'Tab 1' ekliyoruz
         String id = 'tab1';
         String name = 'Tab 1';
-        TabItem tabItem = TabItem(id: id, name: name);
+        TabItem tabItem = TabItem(id: id, name: name, order: 0);
         _tabs.add(tabItem);
         _tabDataList
             .add(TabData(data: [], localExpandedStates: {}, allExpanded: true));
@@ -193,7 +225,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         initialIndex: _tabController.index.clamp(0, _tabs.length - 1),
       );
       _tabController.addListener(_tabControllerListener);
-      setState(() {});
+      setState(() {}); // Sadece burada setState çağırın
     }
   }
 
@@ -231,32 +263,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       initialIndex: newIndex,
     );
 
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
-        if (_tabController.index == _tabs.length) {
-          // '+' butonuna tıklandı, yeni sekme ekle
-          _addNewTab();
-        } else {
-          _loadData(_tabController.index);
-          setState(() {}); // Sekme vurgusunu güncelle
-        }
-      } else {
-        // Kullanıcı sekmeler arasında kaydırma yaptı
-        if (_tabController.index < _tabs.length) {
-          _loadData(_tabController.index);
-          setState(() {}); // Sekme vurgusunu güncelle
-        }
-      }
-    });
+    _tabController.addListener(_tabControllerListener);
 
-    setState(() {}); // TabController değişikliğini UI'ye bildir
+    // setState() burada çağırmaya gerek yok
   }
 
   void _addNewTab() async {
-    int newTabIndex = _tabs.length + 1;
+    int newOrder = _tabs.length;
     String id = const Uuid().v4();
-    String name = 'Tab $newTabIndex';
-    TabItem tabItem = TabItem(id: id, name: name);
+    String name = 'Tab ${newOrder + 1}';
+    TabItem tabItem = TabItem(id: id, name: name, order: newOrder);
 
     await _sqliteDatasource.addTab(tabItem);
 
@@ -311,65 +327,368 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
-  @override
-  void dispose() {
-    for (var controller in _scrollControllers) {
-      controller.dispose();
-    }
-    _tabController.dispose();
-    super.dispose();
+///////////////////////
+
+  // Export Popup açan fonksiyon
+  Future<void> _showExportPopup(BuildContext context) async {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Flexible(
+                child: Text(
+                  'Dışa Aktarma Seçenekleri',
+                  style: TextStyle(
+                      fontSize: 20), // Başlık font boyutunu küçültüyoruz
+                  overflow: TextOverflow
+                      .ellipsis, // Çok uzun olursa üç nokta gösterir
+                ),
+              ),
+              IconButton(
+                padding: EdgeInsets.zero,
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                icon: const Icon(
+                  Icons.close,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start, // İçeriği sola yaslamak için
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton(
+                onPressed: () async {
+                  await exportToFirebase(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.zero, // Köşeleri dikdörtgen yapar
+                  ),
+                ),
+                child: const Align(
+                  alignment:
+                      Alignment.centerLeft, // Buton içeriğini sola yaslar
+                  child: Text(
+                    'Bulut Link Paylaş',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await exportAsFile(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.zero, // Köşeleri dikdörtgen yapar
+                  ),
+                ),
+                child: const Align(
+                  alignment:
+                      Alignment.centerLeft, // Buton içeriğini sola yaslar
+                  child: Text(
+                    'Dosya Olarak Paylaş',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await saveToDownloads(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.zero, // Köşeleri dikdörtgen yapar
+                  ),
+                ),
+                child: const Align(
+                  alignment:
+                      Alignment.centerLeft, // Buton içeriğini sola yaslar
+                  child: Text(
+                    'Dosyalarıma Kaydet',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await exportAsHtml(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.zero, // Köşeleri dikdörtgen yapar
+                  ),
+                ),
+                child: const Align(
+                  alignment:
+                      Alignment.centerLeft, // Buton içeriğini sola yaslar
+                  child: Text(
+                    'HTML Olarak Görüntüle',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
-  // Cihazdaki verileri dışarı aktarır #exportdataa,dışarıaktarr
-  void _exportData() async {
-    try {
-      // SQLite veritabanından tüm sekmeleri ve onlara ait notları alıyoruz
-      List<TabItem> allTabs = await _sqliteDatasource.getTabs();
-      Map<String, dynamic> allData =
-          {}; // Tüm verileri tutmak için bir harita (map)
+  Future<void> _showImportPopup(BuildContext context) async {
+    final TextEditingController _cloudLinkController = TextEditingController();
 
-      for (TabItem tab in allTabs) {
-        // Her sekmeye ait notları alıyoruz
-        List<Item> tabNotes = await _sqliteDatasource.getNotes(tab.id);
-        allData[tab.name] = tabNotes
-            .map((e) => e.toMap())
-            .toList(); // Her sekmenin notlarını ekliyoruz
-      }
+    // Panodaki veriyi alıyoruz ve bulut linki olup olmadığını kontrol ediyoruz
+    ClipboardData? clipboardData = await Clipboard.getData('text/plain');
+    if (clipboardData != null && clipboardData.text != null) {
+      String clipboardText = clipboardData.text!;
 
-      // Veriyi JSON formatına çevir ve sıkıştır
-      String jsonData = jsonEncode(allData);
-      List<int> binaryData = utf8.encode(jsonData);
-      List<int>? compressedData = GZipEncoder().encode(binaryData);
-
-      // Dosya sistemine kaydet
-      final directory = await getApplicationDocumentsDirectory();
-      String formattedDate =
-          DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
-      final file =
-          File('${directory.path}/Tablify_dataExport_$formattedDate.bin');
-      await file.writeAsBytes(compressedData!);
-
-      // Dosyayı paylaş
-      await Share.shareXFiles([XFile(file.path)],
-          text: 'Here is your data export');
-
-      // Başarı mesajı göster
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veriler başarıyla dışa aktarıldı.')),
+      // Bulut linki için RegExp kontrolü (Firebase linki için örnek)
+      RegExp cloudLinkRegExp = RegExp(
+        r'https:\/\/firebasestorage\.googleapis\.com\/.*',
+        caseSensitive: false,
       );
+
+      // Eğer panodaki veri bulut linkiyse TextField'a otomatik yerleştiriyoruz
+      if (cloudLinkRegExp.hasMatch(clipboardText)) {
+        _cloudLinkController.text = clipboardText;
+      }
+    }
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Flexible(
+                child: Text(
+                  'İçeri Aktarma Seçenekleri',
+                  style: TextStyle(fontSize: 20), // Başlık boyutu
+                  overflow:
+                      TextOverflow.ellipsis, // Başlık uzun olursa üç nokta
+                ),
+              ),
+              IconButton(
+                padding: EdgeInsets.zero,
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                icon: const Icon(
+                  Icons.close,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Bulut Linki Giriş Kısmı
+              TextField(
+                controller: _cloudLinkController,
+                decoration: InputDecoration(
+                  labelText: 'Bulut Linki',
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.paste),
+                    onPressed: () async {
+                      ClipboardData? data =
+                          await Clipboard.getData('text/plain');
+                      if (data != null && data.text != null) {
+                        String clipboardText = data.text!;
+                        RegExp cloudLinkRegExp = RegExp(
+                          r'https:\/\/firebasestorage\.googleapis\.com\/.*',
+                          caseSensitive: false,
+                        );
+
+                        // Eğer panodaki veri bulut linkiyse otomatik yerleştir
+                        if (cloudLinkRegExp.hasMatch(clipboardText)) {
+                          _cloudLinkController.text = clipboardText;
+                        } else {
+                          // Geçerli bir bulut linki değilse uyarı ver
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Panodaki veri geçerli bir bulut linki değil.'),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ),
+              ),
+              SizedBox(height: 10),
+              // Ekle Butonu
+              Align(
+                alignment: Alignment.topRight,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    String cloudLink = _cloudLinkController.text;
+                    if (cloudLink.isNotEmpty) {
+                      await _importDataFromCloud(cloudLink);
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  child: const Text(
+                    'Ekle',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Dosya Seç Butonu
+              ElevatedButton(
+                onPressed: () async {
+                  await _importFromFile();
+                  Navigator.of(context).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.zero,
+                  ),
+                ),
+                child: const Align(
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Dosya Seç',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              )
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _importDataFromCloud(String cloudLink) async {
+    try {
+      // Firebase'den ZIP dosyasını indir
+      final tempDir = await getTemporaryDirectory();
+      String zipFilePath = '${tempDir.path}/import_data.zip';
+      File zipFile = File(zipFilePath);
+
+      // ZIP dosyasını bulut linkinden indiriyoruz
+      final response = await HttpClient().getUrl(Uri.parse(cloudLink));
+      final fileBytes = await response.close();
+      await fileBytes.pipe(zipFile.openWrite());
+
+      // ZIP dosyasını aç
+      final bytes = zipFile.readAsBytesSync();
+      final archive = ZipDecoder().decodeBytes(bytes);
+
+      // JSON ve resim dosyalarını çıkartıyoruz
+      for (var file in archive) {
+        final filename = file.name;
+        if (file.isFile) {
+          final data = file.content as List<int>;
+          final filePath = '${tempDir.path}/$filename';
+          File outFile = File(filePath);
+          await outFile.writeAsBytes(data);
+
+          // JSON dosyasını işleme
+          if (filename == 'data.json') {
+            String contents = await outFile.readAsString();
+            Map<String, dynamic> jsonData = jsonDecode(contents);
+
+            // Veritabanındaki mevcut sekmeleri al
+            List<TabItem> existingTabs = await _sqliteDatasource.getTabs();
+            List<TabItem> newTabs = [];
+
+            for (String tabName in jsonData.keys) {
+              // Mevcut sekme var mı kontrol et
+              TabItem? existingTab = existingTabs.firstWhereOrNull(
+                (tab) => tab.name == tabName,
+              );
+
+              // Eğer sekme zaten varsa, onu kullan, yoksa yeni sekme oluştur
+              String tabId;
+              if (existingTab != null) {
+                tabId = existingTab.id;
+              } else {
+                tabId = const Uuid().v4();
+                int newOrder =
+                    _tabs.length + newTabs.length; // Sıralamayı ayarla
+                TabItem newTab =
+                    TabItem(id: tabId, name: tabName, order: newOrder);
+                await _sqliteDatasource.addTab(newTab);
+                newTabs.add(newTab);
+              }
+
+              // İlgili sekmeye ait notları içeri aktar
+              List<dynamic> notes = jsonData[tabName];
+              for (var note in notes) {
+                Item newItem = Item.fromMap(note);
+                newItem.tabId = tabId;
+                await _sqliteDatasource.addOrUpdateNote(newItem);
+              }
+            }
+
+            // Tüm yeni sekmeleri ve verileri ekledikten sonra
+            setState(() {
+              _tabs.addAll(newTabs);
+              _tabDataList.addAll(newTabs
+                  .map((tab) => TabData(
+                      data: [], localExpandedStates: {}, allExpanded: true))
+                  .toList());
+              _scrollControllers
+                  .addAll(newTabs.map((tab) => ScrollController()).toList());
+
+              // TabController'ı güncelle
+              _updateTabController();
+            });
+
+            // İçe aktarma tamamlandıktan sonra başarı mesajı göster
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
+            );
+          }
+        }
+      }
     } catch (e) {
-      // Hata mesajı göster
-      print('Veri dışa aktarılırken hata oluştu: $e');
+      print('Veri içe aktarılırken hata oluştu: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Veriler dışa aktarılırken bir hata oluştu.')),
+            content: Text('Veriler içe aktarılırken bir hata oluştu.')),
       );
     }
   }
 
-  // Cihazdaki verileri içeri aktarır #importdataa,içeriarıaktarr
-
-  void _importData() async {
+  Future<void> _importFromFile() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -386,29 +705,24 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
         // SQLite'den mevcut sekmeleri al
         List<TabItem> existingTabs = await _sqliteDatasource.getTabs();
+        List<TabItem> newTabs = [];
 
         for (String tabName in jsonData.keys) {
           // Mevcut sekme var mı kontrol et
-          TabItem? existingTab = existingTabs.firstWhere(
+          TabItem? existingTab = existingTabs.firstWhereOrNull(
             (tab) => tab.name == tabName,
-            orElse: () => TabItem(id: const Uuid().v4(), name: ''),
           );
 
           // Eğer sekme zaten varsa, onu kullan, yoksa yeni sekme oluştur
           String tabId;
-          if (existingTab.name.isNotEmpty) {
+          if (existingTab != null) {
             tabId = existingTab.id;
           } else {
             tabId = const Uuid().v4();
-            TabItem newTab = TabItem(id: tabId, name: tabName);
+            int newOrder = _tabs.length + newTabs.length; // Sıralamayı ayarla
+            TabItem newTab = TabItem(id: tabId, name: tabName, order: newOrder);
             await _sqliteDatasource.addTab(newTab);
-            setState(() {
-              _tabs.add(newTab);
-              _tabDataList.add(TabData(
-                  data: [], localExpandedStates: {}, allExpanded: true));
-              _scrollControllers
-                  .add(ScrollController()); // Yeni ScrollController ekliyoruz
-            });
+            newTabs.add(newTab);
           }
 
           // İlgili sekmeye ait notları içeri aktar
@@ -420,13 +734,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           }
         }
 
+        // Yeni sekmeleri ve scroll controller'ları ekleyin
+        setState(() {
+          _tabs.addAll(newTabs);
+          _scrollControllers
+              .addAll(newTabs.map((tab) => ScrollController()).toList());
+        });
+
+        // TabController'ı güncelle
+        _updateTabController(initialIndex: _tabs.length - 1);
+
+        // Tüm sekmelerin verilerini yeniden yükle
+        _loadTabs();
+
         // Başarı mesajı
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
         );
-
-        // Verileri yeniden yükle
-        _loadTabs();
       }
     } catch (e) {
       // Hata mesajı göster
@@ -437,6 +761,32 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       );
     }
   }
+
+  Future<void> _loadAllTabData() async {
+    List<TabData> loadedTabData = [];
+    for (int i = 0; i < _tabs.length; i++) {
+      String tabId = _tabs[i].id;
+      List<Item> items = await _sqliteDatasource.getNotes(tabId);
+      print("Loaded ${items.length} items for tab ${_tabs[i].name}");
+      Map<String, bool> expandedStates = {
+        for (var item in items) item.id: item.isExpanded,
+      };
+      bool allExpanded =
+          items.isNotEmpty && items.every((item) => item.isExpanded);
+      loadedTabData.add(TabData(
+        data: items,
+        localExpandedStates: expandedStates,
+        allExpanded: allExpanded,
+      ));
+    }
+
+    setState(() {
+      _tabDataList = loadedTabData;
+    });
+    print("All tab data loaded.");
+  }
+
+/////////////////////import son//////////
 
   // overwrite dialogu #overwritedialogg,aynbaşlıkmevcutt
   Future<bool> _showOverwriteDialog(String title) async {
@@ -546,7 +896,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       // Tab 1 varsayılan sekmesini tekrar oluştur
       String id = 'tab1';
       String name = 'Tab 1';
-      TabItem tabItem = TabItem(id: id, name: name);
+      TabItem tabItem = TabItem(id: id, name: name, order: 0);
       await _sqliteDatasource.addTab(tabItem);
 
       setState(() {
@@ -577,29 +927,94 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  void _onReorderTabs(int oldIndex, int newIndex) {
-    setState(() {
-      // Eğer yeniIndex, oldIndex'ten büyükse yeniIndex'i bir azaltmak gerekebilir
-      // çünkü kaldırma işlemi sonrasında liste kısalır
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
+  void _onReorderTabs(int oldIndex, int newIndex) async {
+    print('ESKİ sıra: $_tabs');
 
-      // Sekmeyi ve ona ait veriyi listelerden kaldır ve yeni konuma ekle
+    setState(() {
       final TabItem movedTab = _tabs.removeAt(oldIndex);
       _tabs.insert(newIndex, movedTab);
 
       final TabData movedTabData = _tabDataList.removeAt(oldIndex);
       _tabDataList.insert(newIndex, movedTabData);
 
-      // ScrollController'ı da aynı şekilde yeniden sırala
       final ScrollController movedScrollController =
           _scrollControllers.removeAt(oldIndex);
       _scrollControllers.insert(newIndex, movedScrollController);
-
-      // TabController'ı güncelle
-      _updateTabController(initialIndex: newIndex);
     });
+
+    // 'order' alanlarını güncelleme ve veritabanına kaydetme
+    for (int i = 0; i < _tabs.length; i++) {
+      TabItem tab = _tabs[i];
+      tab.order = i;
+      await _sqliteDatasource.updateTabOrder(tab.id, tab.order);
+    }
+
+    // TabController'ı güncelleme
+    _updateTabController(initialIndex: newIndex);
+
+    print('Yeni sıra: $_tabs');
+  }
+
+  Future<void> _showRenameTabDialog(int index) async {
+    TextEditingController textController =
+        TextEditingController(text: _tabs[index].name);
+
+    String? newName = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Sekme İsmini Değiştir'),
+          content: TextField(
+            controller: textController,
+            decoration: const InputDecoration(
+              hintText: 'Yeni sekme ismi',
+            ),
+          ),
+          actions: <Widget>[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text(
+                    "İptal",
+                    style: TextStyle(color: Colors.black),
+                  ),
+                ),
+                ElevatedButton(
+                  child: const Text(
+                    'Kaydet',
+                    style: TextStyle(
+                        color: Colors.green, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () {
+                    String inputName = textController.text.trim();
+                    if (inputName.isNotEmpty) {
+                      Navigator.of(context).pop(inputName);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+
+    if (newName != null && newName.isNotEmpty) {
+      _renameTab(index, newName);
+    }
+  }
+
+  void _renameTab(int index, String newName) async {
+    setState(() {
+      _tabs[index].name = newName;
+    });
+
+    // Veritabanında sekme ismini güncelle
+    await _sqliteDatasource.updateTabName(_tabs[index].id, newName);
   }
 
   Widget _buildTabContent(int index) {
@@ -610,32 +1025,28 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           padding: const EdgeInsets.all(3.0),
           child: Column(
             children: [
-              // Display the prompt in all tabs
+              // Prompt kısmı
               Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 5.0),
-                        child: RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
-                                fontSize: 16, color: Colors.black),
-                            children: <TextSpan>[
-                              const TextSpan(
-                                  text:
-                                      'Yeni bir tablo eklemek ister misiniz? '),
-                              TextSpan(
-                                text: 'Ekle',
-                                style: const TextStyle(
-                                  color: Colors.green,
-                                ),
-                                recognizer: TapGestureRecognizer()
-                                  ..onTap = _navigateAndAddItem,
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                              fontSize: 16, color: Colors.black),
+                          children: <TextSpan>[
+                            const TextSpan(
+                                text: 'Yeni bir tablo eklemek ister misiniz? '),
+                            TextSpan(
+                              text: 'Ekle',
+                              style: const TextStyle(
+                                color: Colors.green,
                               ),
-                            ],
-                          ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = _navigateAndAddItem,
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -644,18 +1055,82 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
               if (currentTabData.data.isNotEmpty)
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // Arama ikonu ve metin alanı
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween<double>(
+                          begin: 0,
+                          end: _isSearching ? 1 : 0,
+                        ),
+                        duration: const Duration(milliseconds: 300),
+                        builder: (context, value, child) {
+                          return Container(
+                            width: 50 + 200 * value,
+                            decoration: BoxDecoration(
+                              border: value > 0
+                                  ? Border.all(color: Colors.green)
+                                  : null,
+                              borderRadius:
+                                  BorderRadius.circular(20.0), // Daha yuvarlak
+                            ),
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.search),
+                                  onPressed: () {
+                                    setState(() {
+                                      _isSearching = !_isSearching;
+                                    });
+                                  },
+                                ),
+                                if (value > 0)
+                                  Expanded(
+                                    child: Opacity(
+                                      opacity: value,
+                                      child: TextField(
+                                        controller: _searchController,
+                                        decoration: InputDecoration(
+                                          border: InputBorder.none,
+                                          enabledBorder: InputBorder.none,
+                                          focusedBorder: InputBorder.none,
+                                          disabledBorder: InputBorder.none,
+                                          errorBorder: InputBorder.none,
+                                          focusedErrorBorder: InputBorder.none,
+                                          hintText: 'Arama',
+                                          suffixIcon: IconButton(
+                                            icon: const Icon(Icons.close),
+                                            onPressed: () {
+                                              setState(() {
+                                                _isSearching = false;
+                                                _searchController.clear();
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    // Tümünü Genişlet/Daralt butonu
                     TextButton(
-                        onPressed: () => _toggleExpandCollapse(),
-                        child: Text(
-                          currentTabData.allExpanded
-                              ? 'Tümünü Daralt'
-                              : 'Tümünü Genişlet',
-                          style: const TextStyle(
-                            color: Colors.green,
-                          ),
-                        )),
+                      onPressed: () => _toggleExpandCollapse(),
+                      child: Text(
+                        currentTabData.allExpanded
+                            ? 'Tümünü Daralt'
+                            : 'Tümünü Genişlet',
+                        style: const TextStyle(
+                          color: Colors.green,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
             ],
@@ -676,8 +1151,35 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   //listeyi oluşturmak için bir widget oluşturuyoruz
   Widget _buildPanel(TabData tabData) {
+    String searchQuery = _searchController.text.toLowerCase();
+
+    List<Item> filteredItems = tabData.data.where((item) {
+      bool matchesTitle = item.headerValue.toLowerCase().contains(searchQuery);
+      bool matchesSubtitle = item.subtitle!.toLowerCase().contains(searchQuery);
+
+      bool matchesExpandValue = item.expandedValue
+          .any((value) => value.toLowerCase().contains(searchQuery));
+
+      return matchesTitle || matchesSubtitle || matchesExpandValue;
+    }).toList();
+
+    if (filteredItems.isEmpty) {
+      if (searchQuery.isNotEmpty) {
+        // Arama yapıldı ancak sonuç bulunamadı
+        return Center(
+          child: Text(
+            'Aramanızla eşleşen sonuç bulunamadı.',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        );
+      } else {
+        // Veri yok ve arama yapılmadı, boş bir widget döndürüyoruz
+        return Container();
+      }
+    }
+
     return Column(
-      children: tabData.data.map<Widget>((Item item) {
+      children: filteredItems.map<Widget>((Item item) {
         return Padding(
           padding: const EdgeInsets.only(
               right: 2.0, left: 2.0, bottom: 5.0, top: 2.0),
@@ -727,112 +1229,111 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
           )),
         ),
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              height: 50, // Sekmelerin yüksekliği
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal, // Yatay kaydırma
-                child: ReorderableWrap(
-                  needsLongPressDraggable: false, // Uzun basma gerektirmez
-                  spacing: 8.0, // Sekmeler arası boşluk
-                  runSpacing: 4.0, // Satırlar arası boşluk
-                  direction: Axis.horizontal, // Yatay düzenleme
-                  onReorder: _onReorderTabs, // Sıralama fonksiyonu
-                  children: _tabs.asMap().entries.map((entry) {
-                        int index = entry.key;
-                        TabItem tabItem = entry.value;
-                        return GestureDetector(
-                          key: ValueKey(
-                              tabItem.id), // Her sekme için benzersiz anahtar
-                          onTap: () {
-                            // Sekmeye tıklandığında ilgili sekmeye geçiş yap
-                            _tabController.animateTo(index);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12.0, vertical: 5.0),
-                            decoration: BoxDecoration(
-                              color: _tabController.index == index
-                                  ? Colors.green[300] // Seçili sekmenin rengi
-                                  : Colors.green[100], // Diğer sekmelerin rengi
-                              borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(15.0)), // Köşe yuvarlama
-                              // border: Border.all(
-                              //   color: Colors.green, // Kenarlık rengi
-                              //   width: 1.0, // Kenarlık kalınlığı
-                              // ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize
-                                  .min, // Sekme genişliğini daraltır
-                              children: [
-                                Text(
-                                  tabItem.name,
-                                  style: TextStyle(
-                                    color: _tabController.index == index
-                                        ? Colors
-                                            .white // Seçili sekme metin rengi
-                                        : Colors
-                                            .black, // Diğer sekme metin rengi
-                                  ),
-                                ),
-                                const SizedBox(
-                                    width:
-                                        4.0), // Metin ve 'X' ikonu arası boşluk
-                                if (index != 0) // İlk sekme hariç 'X' göster
-                                  GestureDetector(
-                                    onTap: () {
-                                      // 'X' ikonuna tıklanırsa sekmeyi kapat
-                                      _closeTab(index);
-                                    },
-                                    child: Icon(
-                                      Icons.close,
-                                      size: 16.0,
+        body: Padding(
+          padding: const EdgeInsets.only(top: 5.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: 50,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ReorderableWrap(
+                    needsLongPressDraggable: false,
+                    spacing: 4.0,
+                    runSpacing: 4.0,
+                    direction: Axis.horizontal,
+                    onReorder: _onReorderTabs,
+                    children: _tabs.asMap().entries.map((entry) {
+                          int index = entry.key;
+                          TabItem tabItem = entry.value;
+                          return GestureDetector(
+                            key: ValueKey(tabItem.id),
+                            onTap: () {
+                              _tabController.animateTo(index);
+                            },
+                            onLongPress: () {
+                              // Sekmeye uzun basıldığında isim değiştirme dialogunu aç
+                              _showRenameTabDialog(index);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12.0, vertical: 5.0),
+                              decoration: BoxDecoration(
+                                color: _tabController.index == index
+                                    ? Colors.green[300] // Seçili sekmenin rengi
+                                    : Colors
+                                        .green[100], // Diğer sekmelerin rengi
+                                borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(
+                                        15.0)), // Köşe yuvarlama
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    tabItem.name,
+                                    style: TextStyle(
                                       color: _tabController.index == index
                                           ? Colors
-                                              .white // Seçili sekme 'X' ikonu rengi
+                                              .white // Seçili sekme metin rengi
                                           : Colors
-                                              .black, // Diğer sekme 'X' ikonu rengi
+                                              .black, // Diğer sekme metin rengi
                                     ),
-                                  )
-                                else
-                                  const SizedBox(
-                                      width: 16.0), // İlk sekme için boşluk
-                              ],
+                                  ),
+                                  const SizedBox(width: 10.0),
+                                  if (index != 0) // İlk sekme hariç 'X' göster
+                                    GestureDetector(
+                                      onTap: () {
+                                        // 'X' ikonuna tıklanırsa sekmeyi kapat
+                                        _closeTab(index);
+                                      },
+                                      child: Icon(
+                                        Icons.close,
+                                        size: 16.0,
+                                        color: _tabController.index == index
+                                            ? Colors
+                                                .white // Seçili sekme 'X' ikonu rengi
+                                            : Colors
+                                                .black, // Diğer sekme 'X' ikonu rengi
+                                      ),
+                                    )
+                                  else
+                                    const SizedBox(width: 16.0),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList() +
+                        [
+                          GestureDetector(
+                            onTap: _addNewTab,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12.0, vertical: 5.0),
+                              decoration: const BoxDecoration(
+                                // color: Colors.green[100],
+                                borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(15.0)),
+                              ),
+                              child: const Icon(Icons.add, color: Colors.green),
                             ),
                           ),
-                        );
-                      }).toList() +
-                      [
-                        GestureDetector(
-                          onTap: _addNewTab,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12.0, vertical: 5.0),
-                            decoration: const BoxDecoration(
-                              // color: Colors.green[100],
-                              borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(15.0)),
-                            ),
-                            child: const Icon(Icons.add, color: Colors.green),
-                          ),
-                        ),
-                      ],
+                        ],
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: _tabs.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  return _buildTabContent(index); // Sekme içerikleri
-                }).toList(),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: _tabs.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    return _buildTabContent(index); // Sekme içerikleri
+                  }).toList(),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         bottomNavigationBar: Theme(
           data: Theme.of(context).copyWith(
@@ -882,10 +1383,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             onTap: (index) {
               switch (index) {
                 case 0:
-                  _importData();
+                  _showImportPopup(context);
                   break;
                 case 1:
-                  _exportData();
+                  _showExportPopup(context);
                   break;
                 case 2:
                   _deleteAllData();

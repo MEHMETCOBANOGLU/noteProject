@@ -400,6 +400,35 @@ class _AddItemPageState extends State<AddItemPage> {
     }
   }
 
+  // Resmi kalıcı olarak saklayan fonksiyon
+  Future<String> _saveImagePermanently(File image) async {
+    final directory = await getApplicationDocumentsDirectory(); // Kalıcı dizin
+    final fileName = image.path.split('/').last; // Dosya adını alıyoruz
+    final newPath = '${directory.path}/$fileName'; // Yeni dosya yolu
+
+    final savedImage =
+        await image.copy(newPath); // Resmi yeni yola kopyalıyoruz
+    return savedImage.path; // Kalıcı dosya yolunu döndürüyoruz
+  }
+
+  //itemler için resim seçme #resimseçmee,itemresimm
+  Future<void> _pickImage(int index) async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      File file = File(image.path);
+
+      String imagePath =
+          await _saveImagePermanently(file); // Resmi kaydediyoruz
+      print("Image path: $imagePath");
+
+      setState(() {
+        if (_imagePaths.length > index) {
+          _imagePaths[index] = imagePath; // Kalıcı dosya yolunu kaydediyoruz
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -582,12 +611,7 @@ class _AddItemPageState extends State<AddItemPage> {
                                           )
                                         : IconButton(
                                             padding: EdgeInsets.zero,
-                                            onPressed: () => pickImage(
-                                              index,
-                                              _picker,
-                                              null,
-                                              _imagePaths,
-                                            ),
+                                            onPressed: () => _pickImage(index),
                                             icon: Icon(Icons.image,
                                                 size: 50,
                                                 color: Colors.grey.shade400),

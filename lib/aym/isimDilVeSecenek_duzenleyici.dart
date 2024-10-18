@@ -420,24 +420,26 @@ Future<void> showAllTagsEditDialog(
                         displayText = "İçerik Bulunamadı";
                       }
 
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          duration: const Duration(seconds: 1),
-                          content: Text(
-                            displayText.length > 30
-                                ? '${displayText.substring(0, 30)}... panoya kopyalandı!'
-                                : '$displayText panoya kopyalandı!',
-                          ),
-                        ),
-                      );
+                      _copyText(context, displayText);
 
-                      Clipboard.setData(
-                        ClipboardData(
-                          text: displayText.length > 30
-                              ? displayText.substring(0, 30)
-                              : displayText,
-                        ),
-                      );
+                      // ScaffoldMessenger.of(context).showSnackBar(
+                      //   SnackBar(
+                      //     duration: const Duration(seconds: 1),
+                      //     content: Text(
+                      //       text.length > 30
+                      //           ? '${displayText.substring(0, 30)}... panoya kopyalandı!'
+                      //           : '$displayText panoya kopyalandı!',
+                      //     ),
+                      //   ),
+                      // );
+
+                      // Clipboard.setData(
+                      //   ClipboardData(
+                      //     text: displayText.length > 30
+                      //         ? displayText.substring(0, 30)
+                      //         : displayText,
+                      //   ),
+                      // );
 
                       if (imgPath != null && imgPath!.isNotEmpty) {
                         copyImageToClipboard(context, imgPath!);

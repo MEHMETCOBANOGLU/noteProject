@@ -312,6 +312,33 @@ class _EditItemPageState extends State<EditItemPage> {
     );
   }
 
+// Resimleri kalıcı olarak kaydetme fonksiyonu
+  Future<String> _saveImagePermanently(File image) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final fileName = image.path.split('/').last;
+    final newPath = '${directory.path}/$fileName';
+
+    final savedImage = await image.copy(newPath);
+    return savedImage.path;
+  }
+
+  //itemler için resim seçme #resimseçmee,itemresimm
+
+  Future<void> _pickImage(int index) async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      File file = File(image.path);
+      String savedImagePath =
+          await _saveImagePermanently(file); // Resmi kalıcı kaydediyoruz
+      print("Resim kaydedildi: $savedImagePath");
+
+      setState(() {
+        _selectedImages[index] = File(savedImagePath);
+        _existingImagePaths[index] = savedImagePath;
+      });
+    }
+  }
+
   //seçenekler listboxundan seçenek silme
   void _removeOption(int index) {
     setState(() {
@@ -722,6 +749,9 @@ class _EditItemPageState extends State<EditItemPage> {
                   icon: Icon(Icons.title),
                   // errorText: _isTitleEmpty ? 'Başlık boş bırakılamaz' : null,
                 ),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold, // Yazıyı kalın yapar
+                ),
               ),
               const SizedBox(height: 10),
               Padding(
@@ -737,6 +767,9 @@ class _EditItemPageState extends State<EditItemPage> {
                     icon: Icon(Icons.subtitles),
                     isCollapsed: true,
                     isDense: true,
+                  ),
+                  style: const TextStyle(
+                    color: Colors.black45, // Yazıyı kalın yapar
                   ),
                 ),
               ),
@@ -813,12 +846,7 @@ class _EditItemPageState extends State<EditItemPage> {
                                     )
                                   : IconButton(
                                       padding: EdgeInsets.zero,
-                                      onPressed: () => pickImage(
-                                        index,
-                                        _picker,
-                                        _selectedImages,
-                                        _existingImagePaths,
-                                      ),
+                                      onPressed: () => _pickImage(index),
                                       icon: Icon(Icons.image,
                                           size: 50,
                                           color: Colors.grey.shade400),
