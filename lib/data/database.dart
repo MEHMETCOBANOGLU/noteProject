@@ -59,7 +59,7 @@ class SQLiteDatasource {
           )
         ''');
 
-          // Varsayılan seçenekleri ekleyin
+          // listbox için varsayılan seçenekler #listboxx
           await db.insert('options', {
             'option_text':
                 'Bugün [Dil:ingilizce] dilbilgisi üzerine çalışıyorum.'
@@ -109,7 +109,6 @@ class SQLiteDatasource {
             });
           }
 
-          // Sürüm 3'e yükseltme işlemleri
           if (oldVersion < 3) {
             print(
                 "Applying upgrade to version 3: Adding 'tabId' column to 'notes' table.");
@@ -118,7 +117,6 @@ class SQLiteDatasource {
             await db.execute('UPDATE notes SET tabId = ?', ['tab1']);
           }
 
-          // Sürüm 4'e yükseltme işlemleri
           if (oldVersion < 4) {
             print(
                 "Applying upgrade to version 4: Creating 'tabs' table and inserting default tab.");
@@ -134,7 +132,6 @@ class SQLiteDatasource {
                 .insert('tabs', {'id': 'tab1', 'name': 'Tab 1', 'order': 0});
           }
 
-          // Sürüm 5'e yükseltme işlemleri (Yeni düzeltmeler için)
           if (oldVersion < 5) {
             print(
                 "Applying upgrade to version 5: Correcting 'notes' table schema.");
@@ -204,6 +201,7 @@ class SQLiteDatasource {
     }
   }
 
+  //cihaz id sine göre bir local veritabanı oluşturmak için
   Future<String> getDeviceId() async {
     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
     if (Platform.isAndroid) {
@@ -363,21 +361,16 @@ class SQLiteDatasource {
       );
 
       if (maps.isNotEmpty) {
-        // Notu aldık, şimdi item'ları ayırıyoruz
         String itemsString = maps.first['items'];
-        List<String> items = itemsString.split('||'); // '||' ile ayırıyoruz
+        List<String> items = itemsString.split('||');
 
-        // Eğer itemIndex geçerli bir index değilse silmiyoruz
         if (itemIndex >= 0 && itemIndex < items.length) {
-          // Belirtilen item'ı listeden çıkarıyoruz
           items.removeAt(itemIndex);
 
-          // Güncellenen item listesiyle notu güncelliyoruz
           await _database.update(
             'notes',
             {
-              'items':
-                  items.join('||'), // Listeyi tekrar '||' ile birleştiriyoruz
+              'items': items.join('||'),
             },
             where: 'id = ?',
             whereArgs: [noteId],
@@ -413,17 +406,18 @@ class SQLiteDatasource {
     }
   }
 
+  //yeni tablo ekleme fonksiyonu
   Future<bool> addOrUpdateNote(Item item) async {
     try {
-      // Check if a note with the same title and tabId exists
+      // Aynı id'ye sahip notu kontrol et
       List<Map<String, dynamic>> existingNotes = await _database.query(
         'notes',
-        where: 'title = ? AND tabId = ?',
-        whereArgs: [item.headerValue, item.tabId],
+        where: 'id = ?', // title yerine id ile kontrol et
+        whereArgs: [item.id],
       );
 
       if (existingNotes.isNotEmpty) {
-        // Update existing note
+        // Mevcut notu güncelle
         await _database.update(
           'notes',
           {
@@ -434,18 +428,17 @@ class SQLiteDatasource {
             'isExpanded': item.isExpanded ? 1 : 0,
             'tabId': item.tabId,
           },
-          where: 'title = ? AND tabId = ?',
-          whereArgs: [item.headerValue, item.tabId],
+          where: 'id = ?', // Güncellerken id'yi kullan
+          whereArgs: [item.id],
         );
         print("Note updated successfully");
         return true;
       } else {
-        // Insert new note
-        var uuid = const Uuid().v4();
+        // Yeni not ekle
         var order = DateTime.now().millisecondsSinceEpoch;
 
         await _database.insert('notes', {
-          'id': uuid,
+          'id': item.id, // Yeni id oluşturmak yerine mevcut id'yi kullanın
           'title': item.headerValue,
           'subtitle': item.subtitle,
           'items': item.expandedValue.join('||'),
@@ -524,6 +517,7 @@ class SQLiteDatasource {
     }
   }
 
+  //Sekme ismini değiştirme fonksiyonu
   Future<void> updateTabName(String tabId, String newName) async {
     await _database.update(
       'tabs',
@@ -533,6 +527,7 @@ class SQLiteDatasource {
     );
   }
 
+//Sekme sırasını güncelleme fonksiyonu
   Future<void> updateTabOrder(String tabId, int order) async {
     await _database.update(
       'tabs',

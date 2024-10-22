@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:Tablify/model/items.dart';
 import 'package:Tablify/utility/image_copy.dart';
 
-// ... Diğer importlar
+//Metin kopyalama fonksiyonu #copyy
 Future<void> _copyText(BuildContext context, String text) async {
   final displayText = getDisplayText(text);
   Clipboard.setData(ClipboardData(text: displayText));
@@ -21,13 +21,14 @@ Future<void> _copyText(BuildContext context, String text) async {
   );
 }
 
+//Aym RegExp kontrol fonksiyonu #regexpp
 Future<void> handleTapOnText(BuildContext context, String text, int index,
     Item item, Function() onTableEdited) async {
-  // Genel regex deseni |
+// Bu RegExp, köşeli parantezler içinde etiketleri ve isteğe bağlı parametreleri tanımlamak için kullanılır.
+// Örneğin: [Etiket:Parametre] şeklindeki yapıları bulur.
   final RegExp tagPattern =
       RegExp(r'\[([\p{L}\p{M}\p{N}_]+)(?::([^\]]*))?\]', unicode: true);
 
-  // Tüm eşleşmeleri bul
   final Iterable<RegExpMatch> matches = tagPattern.allMatches(text);
 
   // Etiketlerin listesini oluştur
@@ -44,7 +45,10 @@ Future<void> handleTapOnText(BuildContext context, String text, int index,
   }
   // eğer hiçbir etiket yoksa, metin panoya kopyala
   if (tagList.isEmpty) {
-    if (item.imageUrls![index].isNotEmpty) {
+    if (item.imageUrls != null &&
+        item.imageUrls!.isNotEmpty &&
+        index < item.imageUrls!.length &&
+        item.imageUrls![index].isNotEmpty) {
       copyImageToClipboard(context, item.imageUrls![index]);
     }
     _copyText(context, text);
@@ -80,6 +84,7 @@ Future<void> handleTapOnText(BuildContext context, String text, int index,
   }
 }
 
+//Etiket düzenleme ve kopyalama penceresi #etikett,aymm,etiketdüzenlemee
 Future<void> showAllTagsEditDialog(
   BuildContext context,
   List<Map<String, dynamic>> tagList,
@@ -166,8 +171,6 @@ Future<void> showAllTagsEditDialog(
                         ),
                       ),
                       const SizedBox(height: 20),
-
-                      // Etiketlere göre input alanlarını dinamik olarak oluştur
                       ...tagList.map((tag) {
                         String key = tag['variable'];
                         String? value = tag['value'];
@@ -234,8 +237,6 @@ Future<void> showAllTagsEditDialog(
                         // 'IMG' için özel işlem
                         else if (key == 'IMG') {
                           String? imgValue = controllers[key]?.text;
-                          // String? imgPath;
-
                           // Dosyanın mevcut olup olmadığını kontrol edelim
                           bool fileExists =
                               imgValue != null && File(imgValue).existsSync();
@@ -419,27 +420,7 @@ Future<void> showAllTagsEditDialog(
                       if (displayText.trim().isEmpty) {
                         displayText = "İçerik Bulunamadı";
                       }
-
                       _copyText(context, displayText);
-
-                      // ScaffoldMessenger.of(context).showSnackBar(
-                      //   SnackBar(
-                      //     duration: const Duration(seconds: 1),
-                      //     content: Text(
-                      //       text.length > 30
-                      //           ? '${displayText.substring(0, 30)}... panoya kopyalandı!'
-                      //           : '$displayText panoya kopyalandı!',
-                      //     ),
-                      //   ),
-                      // );
-
-                      // Clipboard.setData(
-                      //   ClipboardData(
-                      //     text: displayText.length > 30
-                      //         ? displayText.substring(0, 30)
-                      //         : displayText,
-                      //   ),
-                      // );
 
                       if (imgPath != null && imgPath!.isNotEmpty) {
                         copyImageToClipboard(context, imgPath!);
@@ -458,7 +439,7 @@ Future<void> showAllTagsEditDialog(
   );
 }
 
-// Display text fonksiyonu: Etiketlerin değerlerini gösterir
+//itemlere ait texlerin etiketsiz hallerini gösterir #displaytextt,metinn,textt
 String getDisplayText(String text) {
   final RegExp tagPattern =
       RegExp(r'\[([\p{L}\p{M}\p{N}_]+)(?::([^\]]*))?\]', unicode: true);
@@ -550,7 +531,6 @@ Widget getColoredDisplayText(String text) {
           ),
         );
       }
-      // Değer yoksa bir şey gösterme
     }
     // Diğer etiketler için
     else {

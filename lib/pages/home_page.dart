@@ -1,4 +1,3 @@
-//////////////////////////////////////////////2///////////
 library;
 
 import 'package:collection/collection.dart';
@@ -58,7 +57,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late TabController _tabController;
   List<TabData> _tabDataList = [];
   bool _isLoading = true;
-
+  bool _isLoadingData = false;
   bool _isSearching = false;
   TextEditingController _searchController = TextEditingController();
 
@@ -84,12 +83,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _onSearchChanged() {
-    setState(() {
-      // The UI will rebuild and apply the search filter
-    });
+    setState(() {});
   }
 
-  // _loadTabs fonksiyonunun güncellenmiş hali
+  // Sekmeleri yükler
   Future<void> _loadTabs() async {
     await _sqliteDatasource.init();
     List<TabItem> tabs = await _sqliteDatasource.getTabs();
@@ -103,7 +100,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _tabs = [tabItem];
         _sqliteDatasource.addTab(tabItem);
       } else {
-        // Sekmeleri 'order' alanına göre sıralıyoruz
         tabs.sort((a, b) => a.order.compareTo(b.order));
         _tabs = tabs;
       }
@@ -112,11 +108,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return TabData(data: [], localExpandedStates: {}, allExpanded: true);
       });
 
-      // TabController'ı başlatıyoruz
       _tabController = TabController(length: _tabs.length, vsync: this);
       _loadData(_tabController.index);
 
-      // TabController dinleyicisini ekliyoruz
       _tabController.addListener(() {
         if (_tabController.indexIsChanging) {
           if (_tabController.index == _tabs.length) {
@@ -127,7 +121,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             setState(() {}); // Sekme vurgusunu güncelle
           }
         } else {
-          // Kullanıcı sekmeler arasında kaydırma yaptı
+          // sekmeler arasında kaydırma yapılınca
           if (_tabController.index < _tabs.length) {
             _loadData(_tabController.index);
             setState(() {}); // Sekme vurgusunu güncelle
@@ -135,13 +129,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         }
       });
 
-      _isLoading = false; // Başlatma tamamlandı
+      _isLoading = false;
 
       _scrollControllers =
           List.generate(_tabs.length, (index) => ScrollController());
     });
   }
 
+  // sekmeleri kapatma fonksiyonu #sekmee,closetabb
   void _closeTab(int index) async {
     TabItem tabItem = _tabs[index];
     List<Item> data = _tabDataList[index].data;
@@ -171,19 +166,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       if (confirm != true) return;
     }
 
-    // Verileri sil
     await _sqliteDatasource.deleteItemsByTabId(tabItem.id);
     await _sqliteDatasource.deleteTab(tabItem.id);
 
     setState(() {
       _tabs.removeAt(index);
       _tabDataList.removeAt(index);
-
-      // İlgili ScrollController'ı kaldır ve serbest bırak
       _scrollControllers[index].dispose();
       _scrollControllers.removeAt(index);
 
-      // Yeni seçili index'i belirliyoruz
       int currentIndex = _tabController.index;
       if (currentIndex >= _tabs.length) {
         currentIndex = _tabs.length - 1;
@@ -199,19 +190,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         _tabDataList
             .add(TabData(data: [], localExpandedStates: {}, allExpanded: true));
         _sqliteDatasource.addTab(tabItem);
-        _scrollControllers
-            .add(ScrollController()); // Yeni ScrollController ekleniyor
+        _scrollControllers.add(ScrollController());
       }
 
-      // TabController'ı güncelliyoruz
       _updateTabController(initialIndex: currentIndex);
     });
 
-    // Yeni seçili sekmeye geçiş yapıyoruz
     _tabController.index = _selectedIndexTab;
   }
 
-  // Preserving state across hot reload
+  // Çalışırken yeniden yükleme sırasında durum korur
   @override
   void didUpdateWidget(covariant HomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -229,6 +217,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
+  //Sekme değişikliklerini dinler ve günceller
   void _tabControllerListener() {
     if (_tabController.indexIsChanging) {
       _loadData(_tabController.index);
@@ -247,6 +236,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
+  // TabController'i günceller index yenilenir
   void _updateTabController({int? initialIndex}) {
     int newIndex = initialIndex ?? _tabController.index;
     if (newIndex >= _tabs.length) {
@@ -268,6 +258,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     setState(() {}); // UI'yi yeniden çizmek için
   }
 
+  // Yeni sekmeye eklemek için #add,tabb
   void _addNewTab() async {
     int newOrder = _tabs.length;
     String id = const Uuid().v4();
@@ -280,10 +271,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _tabs.add(tabItem);
       _tabDataList
           .add(TabData(data: [], localExpandedStates: {}, allExpanded: true));
-      _scrollControllers
-          .add(ScrollController()); // Yeni ScrollController ekleniyor
+      _scrollControllers.add(ScrollController());
 
-      // TabController'ı güncelliyoruz
       _updateTabController(initialIndex: _tabs.length - 1);
     });
 
@@ -291,7 +280,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _tabController.animateTo(_tabs.length - 1);
   }
 
-  // Tüm öğeleri genişletiyoruz #expandall
+  // Tüm öğeleri genişletiyoruz #expandall,genişlett
   void _expandAll(TabData tabData) {
     setState(() {
       for (var item in tabData.data) {
@@ -302,7 +291,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
-  // Tüm öğeleri daraltıyoruz #collapseall
+  // Tüm öğeleri daraltıyoruz #collapseall,daraltt
   void _collapseAll(TabData tabData) {
     setState(() {
       for (var item in tabData.data) {
@@ -327,9 +316,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
   }
 
-///////////////////////
-
-  // Export Popup açan fonksiyon
+  // Export penceeresi
   Future<void> _showExportPopup(BuildContext context) async {
     return showDialog<void>(
       context: context,
@@ -341,157 +328,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               const Flexible(
                 child: Text(
                   'Dışa Aktarma Seçenekleri',
-                  style: TextStyle(
-                      fontSize: 20), // Başlık font boyutunu küçültüyoruz
-                  overflow: TextOverflow
-                      .ellipsis, // Çok uzun olursa üç nokta gösterir
-                ),
-              ),
-              IconButton(
-                padding: EdgeInsets.zero,
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                icon: const Icon(
-                  Icons.close,
-                  color: Colors.red,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start, // İçeriği sola yaslamak için
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton(
-                onPressed: () async {
-                  await exportToFirebase(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  shape: const RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.zero, // Köşeleri dikdörtgen yapar
-                  ),
-                ),
-                child: const Align(
-                  alignment:
-                      Alignment.centerLeft, // Buton içeriğini sola yaslar
-                  child: Text(
-                    'Bulut Link Paylaş',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  await exportAsFile(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  shape: const RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.zero, // Köşeleri dikdörtgen yapar
-                  ),
-                ),
-                child: const Align(
-                  alignment:
-                      Alignment.centerLeft, // Buton içeriğini sola yaslar
-                  child: Text(
-                    'Dosya Olarak Paylaş',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  await saveToDownloads(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  shape: const RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.zero, // Köşeleri dikdörtgen yapar
-                  ),
-                ),
-                child: const Align(
-                  alignment:
-                      Alignment.centerLeft, // Buton içeriğini sola yaslar
-                  child: Text(
-                    'Dosyalarıma Kaydet',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  await exportAsHtml(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  shape: const RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.zero, // Köşeleri dikdörtgen yapar
-                  ),
-                ),
-                child: const Align(
-                  alignment:
-                      Alignment.centerLeft, // Buton içeriğini sola yaslar
-                  child: Text(
-                    'HTML Olarak Görüntüle',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _showImportPopup(BuildContext context) async {
-    final TextEditingController _cloudLinkController = TextEditingController();
-
-    // Panodaki veriyi alıyoruz ve bulut linki olup olmadığını kontrol ediyoruz
-    ClipboardData? clipboardData = await Clipboard.getData('text/plain');
-    if (clipboardData != null && clipboardData.text != null) {
-      String clipboardText = clipboardData.text!;
-
-      // Bulut linki için RegExp kontrolü (Firebase linki için örnek)
-      RegExp cloudLinkRegExp = RegExp(
-        r'https:\/\/firebasestorage\.googleapis\.com\/.*',
-        caseSensitive: false,
-      );
-
-      // Eğer panodaki veri bulut linkiyse TextField'a otomatik yerleştiriyoruz
-      if (cloudLinkRegExp.hasMatch(clipboardText)) {
-        _cloudLinkController.text = clipboardText;
-      }
-    }
-
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Flexible(
-                child: Text(
-                  'İçeri Aktarma Seçenekleri',
-                  style: TextStyle(fontSize: 20), // Başlık boyutu
-                  overflow:
-                      TextOverflow.ellipsis, // Başlık uzun olursa üç nokta
+                  style: TextStyle(fontSize: 20),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               IconButton(
@@ -510,67 +348,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Bulut Linki Giriş Kısmı
-              TextField(
-                controller: _cloudLinkController,
-                decoration: InputDecoration(
-                  labelText: 'Bulut Linki',
-                  suffixIcon: IconButton(
-                    icon: Icon(Icons.paste),
-                    onPressed: () async {
-                      ClipboardData? data =
-                          await Clipboard.getData('text/plain');
-                      if (data != null && data.text != null) {
-                        String clipboardText = data.text!;
-                        RegExp cloudLinkRegExp = RegExp(
-                          r'https:\/\/firebasestorage\.googleapis\.com\/.*',
-                          caseSensitive: false,
-                        );
-
-                        // Eğer panodaki veri bulut linkiyse otomatik yerleştir
-                        if (cloudLinkRegExp.hasMatch(clipboardText)) {
-                          _cloudLinkController.text = clipboardText;
-                        } else {
-                          // Geçerli bir bulut linki değilse uyarı ver
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'Panodaki veri geçerli bir bulut linki değil.'),
-                            ),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                ),
-              ),
-              SizedBox(height: 10),
-              // Ekle Butonu
-              Align(
-                alignment: Alignment.topRight,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    String cloudLink = _cloudLinkController.text;
-                    if (cloudLink.isNotEmpty) {
-                      await _importDataFromCloud(cloudLink);
-                      Navigator.of(context).pop();
-                    }
-                  },
-                  child: const Text(
-                    'Ekle',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // Dosya Seç Butonu
               ElevatedButton(
                 onPressed: () async {
-                  await _importFromFile();
-                  Navigator.of(context).pop();
+                  await exportToFirebase(context);
                 },
                 style: ElevatedButton.styleFrom(
                   shape: const RoundedRectangleBorder(
@@ -578,16 +358,76 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ),
                 child: const Align(
-                  alignment: Alignment.center,
+                  alignment: Alignment.centerLeft,
                   child: Text(
-                    'Dosya Seç',
+                    'Bulut Link Paylaş',
                     style: TextStyle(
                       color: Colors.green,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-              )
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await exportAsFile(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.zero,
+                  ),
+                ),
+                child: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Dosya Olarak Paylaş',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await saveToDownloads(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.zero,
+                  ),
+                ),
+                child: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Dosyalarıma Kaydet',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await exportAsHtml(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.zero,
+                  ),
+                ),
+                child: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'HTML Olarak Görüntüle',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         );
@@ -595,6 +435,165 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  //İmport penceeresi #importt
+  Future<void> _showImportPopup(BuildContext context) async {
+    final TextEditingController _cloudLinkController = TextEditingController();
+
+    ClipboardData? clipboardData = await Clipboard.getData('text/plain');
+    if (clipboardData != null && clipboardData.text != null) {
+      String clipboardText = clipboardData.text!;
+      RegExp cloudLinkRegExp = RegExp(
+        r'https:\/\/firebasestorage\.googleapis\.com\/.*',
+        caseSensitive: false,
+      );
+      if (cloudLinkRegExp.hasMatch(clipboardText)) {
+        _cloudLinkController.text = clipboardText;
+      }
+    }
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Flexible(
+                    child: Text(
+                      'İçeri Aktarma Seçenekleri',
+                      style: TextStyle(fontSize: 20),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Bulut Linki Giriş Kısmı
+                  TextField(
+                    controller: _cloudLinkController,
+                    decoration: InputDecoration(
+                      labelText: 'Bulut Linki',
+                      suffixIcon: IconButton(
+                        icon: Icon(Icons.paste),
+                        onPressed: () async {
+                          ClipboardData? data =
+                              await Clipboard.getData('text/plain');
+                          if (data != null && data.text != null) {
+                            String clipboardText = data.text!;
+                            RegExp cloudLinkRegExp = RegExp(
+                              r'https:\/\/firebasestorage\.googleapis\.com\/.*',
+                              caseSensitive: false,
+                            );
+                            if (cloudLinkRegExp.hasMatch(clipboardText)) {
+                              _cloudLinkController.text = clipboardText;
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Panodaki veri geçerli bir bulut linki değil.'),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Ekle Butonu
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        String cloudLink = _cloudLinkController.text;
+                        if (cloudLink.isNotEmpty) {
+                          setState(() {
+                            _isLoadingData =
+                                true; // Yüklenme göstergesi başlatılır
+                          });
+                          await _importDataFromCloud(
+                              cloudLink); // Veri çekiliyor
+                          setState(() {
+                            _isLoadingData =
+                                false; // Yüklenme tamamlandığında kaldırılır
+                          });
+                          Navigator.of(context).pop();
+                        }
+                      },
+                      child: const Text(
+                        'Ekle',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Dosya Seç Butonu
+                  ElevatedButton(
+                    onPressed: () async {
+                      await _importFromFile();
+                      Navigator.of(context).pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      ),
+                    ),
+                    child: const Align(
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Dosya Seç',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              // Veriler yükleniyorsa, yüklenme simgesi göster
+              actions: [
+                if (_isLoadingData)
+                  const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          color: Colors.green,
+                        ), // Yüklenme simgesi
+                        SizedBox(height: 10),
+                        Text("Veriler içe aktarılıyor, lütfen bekleyin...",
+                            style: TextStyle(color: Colors.green)),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+//İmport bulut link  fonksiyonu #bulutt
   Future<void> _importDataFromCloud(String cloudLink) async {
     try {
       // Firebase'den ZIP dosyasını indir
@@ -641,8 +640,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 tabId = existingTab.id;
               } else {
                 tabId = const Uuid().v4();
-                int newOrder =
-                    _tabs.length + newTabs.length; // Sıralamayı ayarla
+                int newOrder = _tabs.length + newTabs.length;
                 TabItem newTab =
                     TabItem(id: tabId, name: tabName, order: newOrder);
                 await _sqliteDatasource.addTab(newTab);
@@ -668,12 +666,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               _scrollControllers
                   .addAll(newTabs.map((tab) => ScrollController()).toList());
 
-              // TabController'ı güncelle
               _updateTabController();
               _loadTabs();
             });
 
-            // İçe aktarma tamamlandıktan sonra başarı mesajı göster
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
             );
@@ -689,6 +685,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
+  //İmport dosya  fonksiyonu #dosyaseçç
   Future<void> _importFromFile() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -701,8 +698,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         List<int> binaryData = await file.readAsBytes();
         List<int> decompressedData = GZipDecoder().decodeBytes(binaryData);
         String contents = utf8.decode(decompressedData);
-        Map<String, dynamic> jsonData =
-            jsonDecode(contents); // Tüm sekmeler ve notlar
+        Map<String, dynamic> jsonData = jsonDecode(contents);
 
         // SQLite'den mevcut sekmeleri al
         List<TabItem> existingTabs = await _sqliteDatasource.getTabs();
@@ -720,7 +716,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             tabId = existingTab.id;
           } else {
             tabId = const Uuid().v4();
-            int newOrder = _tabs.length + newTabs.length; // Sıralamayı ayarla
+            int newOrder = _tabs.length + newTabs.length;
             TabItem newTab = TabItem(id: tabId, name: tabName, order: newOrder);
             await _sqliteDatasource.addTab(newTab);
             newTabs.add(newTab);
@@ -750,7 +746,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           _loadTabs();
         });
 
-        // Başarı mesajı
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
         );
@@ -765,55 +760,52 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-/////////////////////import son//////////
-
   // overwrite dialogu #overwritedialogg,aynbaşlıkmevcutt
-  Future<bool> _showOverwriteDialog(String title) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Aynı Başlık Mevcut'),
-              content: Text.rich(
-                TextSpan(
-                  text: '',
-                  children: <TextSpan>[
-                    TextSpan(
-                      text: title,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const TextSpan(
-                      text:
-                          ' başlıklı bir not zaten var. Üzerine yazmak ister misiniz?',
-                    ),
-                  ],
-                ),
-              ),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('İptal',
-                      style: TextStyle(color: Colors.black)),
-                  onPressed: () {
-                    Navigator.of(context).pop(false);
-                  },
-                ),
-                TextButton(
-                  child: const Text('Üzerine Yaz',
-                      style: TextStyle(
-                          color: Colors.green, fontWeight: FontWeight.bold)),
-                  onPressed: () {
-                    Navigator.of(context).pop(true);
-                  },
-                ),
-              ],
-            );
-          },
-        ) ??
-        false;
-  }
+  // Future<bool> _showOverwriteDialog(String title) async {
+  //   return await showDialog<bool>(
+  //         context: context,
+  //         builder: (BuildContext context) {
+  //           return AlertDialog(
+  //             title: const Text('Aynı Başlık Mevcut'),
+  //             content: Text.rich(
+  //               TextSpan(
+  //                 text: '',
+  //                 children: <TextSpan>[
+  //                   TextSpan(
+  //                     text: title,
+  //                     style: const TextStyle(fontWeight: FontWeight.bold),
+  //                   ),
+  //                   const TextSpan(
+  //                     text:
+  //                         ' başlıklı bir not zaten var. Üzerine yazmak ister misiniz?',
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //             actions: <Widget>[
+  //               TextButton(
+  //                 child: const Text('İptal',
+  //                     style: TextStyle(color: Colors.black)),
+  //                 onPressed: () {
+  //                   Navigator.of(context).pop(false);
+  //                 },
+  //               ),
+  //               TextButton(
+  //                 child: const Text('Üzerine Yaz',
+  //                     style: TextStyle(
+  //                         color: Colors.green, fontWeight: FontWeight.bold)),
+  //                 onPressed: () {
+  //                   Navigator.of(context).pop(true);
+  //                 },
+  //               ),
+  //             ],
+  //           );
+  //         },
+  //       ) ??
+  //       false;
+  // }
 
-  // AddItemPage'e yönlendirme, dönüşte veri bekliyoruz. #navigateandadditemm
-
+  // AddItemPage'e yönlendirme, dönüşte veri bekliyoruz.
   void _navigateAndAddItem() async {
     int currentIndex = _tabController.index;
     String tabId = _tabs[currentIndex].id;
@@ -868,7 +860,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
 
     if (confirm == true) {
-      // Tüm verileri sil
       await _sqliteDatasource.deleteAllItems();
       await _sqliteDatasource.deleteAllTabs();
 
@@ -879,17 +870,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       await _sqliteDatasource.addTab(tabItem);
 
       setState(() {
-        // Tüm verileri tab listelerinden temizliyoruz
         _tabDataList.clear();
         _tabs.clear();
 
-        // Tab 1 sekmesini ve verisini tekrar ekliyoruz
         _tabs = [tabItem];
         _tabDataList = [
           TabData(data: [], localExpandedStates: {}, allExpanded: true),
         ];
 
-        // TabController'ı tekrar başlatıyoruz
         _tabController.dispose();
         _tabController = TabController(
           length: _tabs.length,
@@ -906,6 +894,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
+  //Sekmeleri sıralama #sıralamaa,dragg,dropp
   void _onReorderTabs(int oldIndex, int newIndex) async {
     print('ESKİ sıra: $_tabs');
 
@@ -921,19 +910,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _scrollControllers.insert(newIndex, movedScrollController);
     });
 
-    // 'order' alanlarını güncelleme ve veritabanına kaydetme
     for (int i = 0; i < _tabs.length; i++) {
       TabItem tab = _tabs[i];
       tab.order = i;
       await _sqliteDatasource.updateTabOrder(tab.id, tab.order);
     }
 
-    // TabController'ı güncelleme
     _updateTabController(initialIndex: newIndex);
-
-    print('Yeni sıra: $_tabs');
   }
 
+  //Sekme ismini değiştirme fonksiyonu
   Future<void> _showRenameTabDialog(int index) async {
     TextEditingController textController =
         TextEditingController(text: _tabs[index].name);
@@ -992,10 +978,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _tabs[index].name = newName;
     });
 
-    // Veritabanında sekme ismini güncelle
+    // Veritabanında sekme ismini günceller
     await _sqliteDatasource.updateTabName(_tabs[index].id, newName);
   }
 
+  //appbarın altındaki kısım için bir widget oluşturuyoruz
   Widget _buildTabContent(int index) {
     TabData currentTabData = _tabDataList[index];
     return Column(
@@ -1057,6 +1044,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                             child: Row(
                               children: [
+                                // Arama butonu #searchh,aramaa
                                 IconButton(
                                   icon: const Icon(Icons.search),
                                   onPressed: () {
@@ -1145,7 +1133,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     if (filteredItems.isEmpty) {
       if (searchQuery.isNotEmpty) {
         // Arama yapıldı ancak sonuç bulunamadı
-        return Center(
+        return const Center(
           child: Text(
             'Aramanızla eşleşen sonuç bulunamadı.',
             style: TextStyle(fontSize: 16, color: Colors.grey),
@@ -1214,10 +1202,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
+                //Sekmelerin yer aldığı kısım #sekmelerr,tabss
                 height: 50,
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: ReorderableWrap(
+                    //sekmlerin sıralarını değiştirme #orderrr,dragg,dropp
                     needsLongPressDraggable: false,
                     spacing: 4.0,
                     runSpacing: 4.0,
@@ -1232,7 +1222,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               _tabController.animateTo(index);
                             },
                             onLongPress: () {
-                              // Sekmeye uzun basıldığında isim değiştirme dialogunu aç
+                              // Sekmeye uzun basıldığında isim değiştirme dialogunu aç #renametabb,sekmeisminideğiştirr
                               _showRenameTabDialog(index);
                             },
                             child: Container(
@@ -1240,12 +1230,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   horizontal: 12.0, vertical: 5.0),
                               decoration: BoxDecoration(
                                 color: _tabController.index == index
-                                    ? Colors.green[300] // Seçili sekmenin rengi
-                                    : Colors
-                                        .green[100], // Diğer sekmelerin rengi
+                                    ? Colors.green[300]
+                                    : Colors.green[100],
                                 borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(
-                                        15.0)), // Köşe yuvarlama
+                                    top: Radius.circular(15.0)),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -1254,27 +1242,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                     tabItem.name,
                                     style: TextStyle(
                                       color: _tabController.index == index
-                                          ? Colors
-                                              .white // Seçili sekme metin rengi
-                                          : Colors
-                                              .black, // Diğer sekme metin rengi
+                                          ? Colors.white
+                                          : Colors.black,
                                     ),
                                   ),
                                   const SizedBox(width: 10.0),
-                                  if (index != 0) // İlk sekme hariç 'X' göster
+                                  if (index != 0)
                                     GestureDetector(
                                       onTap: () {
-                                        // 'X' ikonuna tıklanırsa sekmeyi kapat
+                                        // 'X' ikonuna tıklanırsa sekmeyi kapat #closee,closetabb
                                         _closeTab(index);
                                       },
                                       child: Icon(
                                         Icons.close,
                                         size: 16.0,
                                         color: _tabController.index == index
-                                            ? Colors
-                                                .white // Seçili sekme 'X' ikonu rengi
-                                            : Colors
-                                                .black, // Diğer sekme 'X' ikonu rengi
+                                            ? Colors.white
+                                            : Colors.black,
                                       ),
                                     )
                                   else
@@ -1285,13 +1269,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           );
                         }).toList() +
                         [
+                          //Sekme eklemek için artı butonu #sekmee,sekmeeklee
                           GestureDetector(
                             onTap: _addNewTab,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12.0, vertical: 5.0),
                               decoration: const BoxDecoration(
-                                // color: Colors.green[100],
                                 borderRadius: BorderRadius.vertical(
                                     top: Radius.circular(15.0)),
                               ),
@@ -1307,7 +1291,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   controller: _tabController,
                   children: _tabs.asMap().entries.map((entry) {
                     int index = entry.key;
-                    return _buildTabContent(index); // Sekme içerikleri
+                    return _buildTabContent(index);
                   }).toList(),
                 ),
               ),
@@ -1322,7 +1306,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             backgroundColor: Colors.green[50],
             selectedItemColor: Colors.green[300],
             unselectedItemColor: Colors.green[200],
-            type: BottomNavigationBarType.fixed, // Kayma davranışını önler
+            type: BottomNavigationBarType.fixed,
             items: [
               BottomNavigationBarItem(
                 icon: Container(
@@ -1362,13 +1346,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             onTap: (index) {
               switch (index) {
                 case 0:
-                  _showImportPopup(context);
+                  _showImportPopup(context); //İçeri aktar #içeriaktarr,importt
                   break;
                 case 1:
-                  _showExportPopup(context);
+                  _showExportPopup(
+                      context); //Dışarı aktar #dışarıaktarr,exportt
                   break;
                 case 2:
-                  _deleteAllData();
+                  _deleteAllData(); //Tüm verileri sil #sil,deletee
                   break;
               }
             },
@@ -1378,7 +1363,3 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 }
-////////////////////////////////////////////////
-///
-///
-///

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-// tablo ekleme ve düzenleme sayfasındaki 3 nokta ikonundaki seçeneker menusu
+// tablo ekleme ve düzenleme sayfasındaki 3 nokta ikonundaki seçeneker menusu #litboxx
 void showListBoxDialog(
     BuildContext context,
     int index,
@@ -119,7 +119,6 @@ void showListBoxDialog(
                                 addNewOption(newOptionController.text);
                                 isAddingNewOption = !isAddingNewOption;
 
-                                // Yeni eleman eklendikten sonra listenin en altına kaydır
                                 WidgetsBinding.instance
                                     .addPostFrameCallback((_) {
                                   scrollController.animateTo(

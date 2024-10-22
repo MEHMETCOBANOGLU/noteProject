@@ -18,25 +18,24 @@ Future<String> saveImagePermanently(File image) async {
   return savedImage.path;
 }
 
-//itemler için resim seçme #resimseçmee,itemresimm
+// Resim seçme #resimseçmee, resimm
 Future<String?> pickImage(
   int index,
   ImagePicker picker,
-  List<File?>? selectedImages, // Optional
+  List<File?>? selectedImages,
   List<String?> existingImagePaths,
 ) async {
   final XFile? image = await picker.pickImage(source: ImageSource.gallery);
   if (image != null) {
     File file = File(image.path);
     String savedImagePath = await saveImagePermanently(file);
-    return savedImagePath; // Seçilen resmin yolunu döndür
+    return savedImagePath;
   } else {
-    // Resim seçimi iptal edilirse null döndür
     return null;
   }
 }
 
-//listeden item silme #listedenitemsilme
+// listeden item silme #listedenitemsilme
 Future<void> removeItemField(
   int index,
   List<TextEditingController> itemControllers,
@@ -49,11 +48,9 @@ Future<void> removeItemField(
   BuildContext context,
   Function setState,
   Function onTableEdited,
-  TextEditingController titleController, // Ensure titleController is passed
-  TextEditingController
-      subtitleController, // Ensure subtitleController is passed
+  TextEditingController titleController,
+  TextEditingController subtitleController,
 ) async {
-  // Ask for user confirmation
   bool? confirm = await showDialog<bool>(
     context: context,
     builder: (BuildContext context) {
@@ -79,7 +76,6 @@ Future<void> removeItemField(
     await sqliteDatasource.deleteItem(item.id, index);
 
     setState(() {
-      // Remove the respective item at the given index
       if (index >= 0 && index < itemControllers.length) {
         itemControllers.removeAt(index);
       }
@@ -109,7 +105,6 @@ Future<void> removeItemField(
       }
     }
 
-    // Update the item in the database with the remaining data
     bool success = await sqliteDatasource.addOrUpdateNote(
       Item(
         id: item.id,
@@ -122,7 +117,6 @@ Future<void> removeItemField(
     );
 
     if (success) {
-      // Notify the user of successful deletion
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('İtem başarıyla silindi!'),
@@ -131,13 +125,12 @@ Future<void> removeItemField(
       );
     }
 
-    // Trigger the table update and close the dialog
     onTableEdited();
-    Navigator.of(context).pop(); // Close the dialog
+    Navigator.of(context).pop();
   }
 }
 
-// 3 nokta ikonuna tıklandığında açılan menu
+// 3 nokta ikonuna tıklandığında açılan menu #3noktaa
 void showCustomMenu(
   BuildContext context,
   int index,
@@ -151,10 +144,10 @@ void showCustomMenu(
   TextEditingController newOptionController,
   bool isAddingNewOption,
   Function setState,
-  void Function(String)? addNewOption, // Optional
-  void Function(int)? removeOption, // Optional
-  void Function(String)? onPaste, // Yeni parametre
-  void Function(String)? onImagePicked, // Yeni parametre
+  void Function(String)? addNewOption,
+  void Function(int)? removeOption,
+  void Function(String)? onPaste,
+  void Function(String)? onImagePicked,
 ) {
   final RenderBox renderBox =
       key.currentContext!.findRenderObject() as RenderBox;
@@ -165,9 +158,9 @@ void showCustomMenu(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
     context: context,
     position: RelativeRect.fromLTRB(
-      offset.dx + renderBox.size.width,
-      offset.dy + renderBox.size.height,
       offset.dx,
+      offset.dy + renderBox.size.height,
+      offset.dx + renderBox.size.width,
       offset.dy,
     ),
     items: [
@@ -182,8 +175,7 @@ void showCustomMenu(
                   index, picker, selectedImages, existingImagePaths);
               if (selectedImagePath != null) {
                 if (onImagePicked != null) {
-                  onImagePicked(
-                      selectedImagePath); // Callback ile resmi güncelle
+                  onImagePicked(selectedImagePath);
                 }
                 setState(() {
                   existingImagePaths[index] = selectedImagePath;
@@ -199,11 +191,11 @@ void showCustomMenu(
           leading: const Icon(Icons.paste),
           title: const Text('Yapıştır'),
           onTap: () async {
-            Navigator.pop(context); // Menü kapatılır
+            Navigator.pop(context);
             ClipboardData? data = await Clipboard.getData('text/plain');
             if (data != null && data.text != null && data.text!.isNotEmpty) {
               if (onPaste != null) {
-                onPaste(data.text!); // Callback ile metni yapıştır
+                onPaste(data.text!);
               } else {
                 setState(() {
                   itemControllers[index].text = data.text!;
@@ -245,7 +237,7 @@ void showCustomMenu(
   );
 }
 
-// Long press edit dialog for items
+// item düzenleme penceresi #itemgüncellee
 void showCustomEditMenu(
   BuildContext context,
   int index,
@@ -262,7 +254,7 @@ void showCustomEditMenu(
   SQLiteDatasource sqliteDatasource,
   Item item,
   Function onTableEdited,
-  TextEditingController titleController, // Ensure titleController is passed
+  TextEditingController titleController,
   TextEditingController subtitleController,
 ) {
   showDialog(
@@ -299,14 +291,13 @@ void showCustomEditMenu(
                     : IconButton(
                         padding: EdgeInsets.zero,
                         onPressed: () async {
-                          // Resim seçildikten sonra hem dialog içi hem dışı state güncellenmeli
                           String? selectedImagePath = await pickImage(index,
                               picker, selectedImages, existingImagePaths);
                           if (selectedImagePath != null) {
                             setDialogState(() {
                               imageUrl = selectedImagePath;
                             });
-                            // Dialog dışındaki state'i de güncelle
+
                             setState(() {
                               existingImagePaths[index] = selectedImagePath;
                               selectedImages?[index] = File(selectedImagePath);
@@ -338,14 +329,13 @@ void showCustomEditMenu(
                               selectedImages,
                               existingImagePaths,
                               picker,
-                              [], // options listesi, isterseniz buraya ekleyebilirsiniz
+                              [],
                               TextEditingController(),
                               false,
                               setState,
                               null,
                               null,
                               (String pastedText) {
-                                // Dialog içindeki controller'ı güncelle
                                 controller.text = pastedText;
                               },
                               (String imagePath) {
@@ -353,7 +343,6 @@ void showCustomEditMenu(
                                   imageUrl = imagePath;
                                 });
 
-                                // Dialog dışındaki state'i güncelle
                                 setState(() {
                                   existingImagePaths[index] = imagePath;
                                   selectedImages?[index] = File(imagePath);
@@ -373,15 +362,8 @@ void showCustomEditMenu(
                           onPressed: () {
                             setState(() {
                               itemControllers[index].text = controller.text;
-                              existingImagePaths[index] = imageUrl ??
-                                  ''; // Sadece seçilen index için resmi güncelle
+                              existingImagePaths[index] = imageUrl ?? '';
                             });
-
-                            // // Veritabanına kaydetme
-                            // item.expandedValue[index] = controller.text;
-                            // item.imageUrls![index] = existingImagePaths[
-                            //         index] ??
-                            //     ''; // Sadece seçilen index'in resmini güncelle
 
                             removeItemField(
                                 index,
@@ -425,17 +407,19 @@ void showCustomEditMenu(
                       color: Colors.green, fontWeight: FontWeight.bold),
                 ),
                 onPressed: () async {
-                  // Veriyi UI'ya kaydetme
                   setState(() {
                     itemControllers[index].text = controller.text;
-                    existingImagePaths[index] = imageUrl ??
-                        ''; // Sadece seçilen index için resmi güncelle
+                    existingImagePaths[index] = imageUrl ?? '';
+
+                    // Ensure imageUrls list is correctly initialized
+                    while (item.imageUrls!.length <= index) {
+                      item.imageUrls!.add('');
+                    }
+
+                    item.imageUrls![index] = existingImagePaths[index] ?? '';
                   });
 
-                  // Veritabanına kaydetme
                   item.expandedValue[index] = controller.text;
-                  item.imageUrls![index] = existingImagePaths[index] ??
-                      ''; // Sadece seçilen index'in resmini güncelle
 
                   bool success = await sqliteDatasource.addOrUpdateNote(item);
 
@@ -458,7 +442,7 @@ void showCustomEditMenu(
                     );
                   }
 
-                  Navigator.of(context).pop(); // Dialogu kapat
+                  Navigator.of(context).pop();
                 },
               ),
             ],

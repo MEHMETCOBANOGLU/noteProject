@@ -40,7 +40,7 @@ class _ShowImageState extends State<ShowImage> {
     super.dispose();
   }
 
-  // Resimleri belleğe yükle
+  // Resimleri belleğe yükler
   void _preloadImages() {
     for (var imagePath in widget.imagePaths) {
       loadedImages.add(Image.file(File(imagePath)));
@@ -56,6 +56,7 @@ class _ShowImageState extends State<ShowImage> {
     );
   }
 
+  //Resim kopyalama işlemi #copyimgg
   Future<void> _copyImage(String imagePath) async {
     try {
       final file = File(imagePath);
@@ -267,7 +268,7 @@ class _ShowImageState extends State<ShowImage> {
               },
             ),
           ),
-          // Noktalar ve ok işaretleri bölümü, en alta alındı
+          // Noktalar ve ok işaretleri bölümü
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Row(

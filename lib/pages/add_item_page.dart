@@ -59,7 +59,7 @@ class _AddItemPageState extends State<AddItemPage> {
     });
   }
 
-  //yeni tablo ekler #yenitabloeklee
+  //yeni tablo ekleme fonksiyonum #eklee
   Future<void> _addNewTable() async {
     setState(() {
       _isTitleEmpty = _titleController.text.isEmpty;
@@ -70,16 +70,16 @@ class _AddItemPageState extends State<AddItemPage> {
           _itemControllers.map((controller) => controller.text).toList();
       List<String> imagePaths = _imagePaths.map((path) => path ?? "").toList();
 
-      bool noteExists = await _sqliteDatasource.noteExistsWithTitle(
-          _titleController.text, widget.tabId);
+      // bool noteExists = await _sqliteDatasource.noteExistsWithTitle(
+      //     _titleController.text, widget.tabId);
 
-      if (noteExists) {
-        bool overwriteConfirmed = await _showOverwriteDialog();
+      // if (noteExists) {
+      //   bool overwriteConfirmed = await _showOverwriteDialog();
 
-        if (!overwriteConfirmed) {
-          return;
-        }
-      }
+      //   if (!overwriteConfirmed) {
+      //     return;
+      //   }
+      // }
 
       bool success = await _sqliteDatasource.addOrUpdateNote(
         Item(
@@ -87,7 +87,7 @@ class _AddItemPageState extends State<AddItemPage> {
           headerValue: _titleController.text,
           subtitle: _subtitleController.text,
           expandedValue: items,
-          imageUrls: imagePaths, // Dosya yolu kaydediliyor
+          imageUrls: imagePaths,
           tabId: widget.tabId,
         ),
       );
@@ -179,7 +179,7 @@ class _AddItemPageState extends State<AddItemPage> {
     }
   }
 
-  //Tablo ekleme sayfasındaki tümünü kopyala butonu #copyall,copyalll,copyy,tümünükopyalaa
+  //Tablo ekleme sayfasındaki tümünü kopyala fonksiyonu #copyall,copyalll,copyy,tümünükopyalaa
   void _copyAllToClipboard() async {
     var items = await Future.wait(_itemControllers.map((controller) async {
       int index = _itemControllers.indexOf(controller);
@@ -226,8 +226,8 @@ class _AddItemPageState extends State<AddItemPage> {
     await file.writeAsBytes(imageBytes);
     return filePath;
   }
-  // Tablo ekleme sayfasındaki tümünü yapıştır butonu #pasteall,tümünüyapıştırr
 
+  // Tablo ekleme sayfasındaki tümünü yapıştır butonu #pasteall,tümünüyapıştırr
   Future<void> _pasteAllFromClipboard() async {
     ClipboardData? data =
         await Clipboard.getData('text/plain'); // Panodan veri alınır
@@ -263,7 +263,6 @@ class _AddItemPageState extends State<AddItemPage> {
         }
       }
 
-      // YAML Önizleme Dialogu gösteriliyor
       await _showYamlPreviewDialog(
         title: 'YAML Önizlemesi',
         content: yamlText,
@@ -311,6 +310,7 @@ class _AddItemPageState extends State<AddItemPage> {
     );
   }
 
+// YAML Önizleme Dialogu #yamll
   Future<void> _showYamlPreviewDialog({
     required String title,
     required String content,
@@ -353,7 +353,7 @@ class _AddItemPageState extends State<AddItemPage> {
     );
   }
 
-// listeye item ekleme #listeyeitemekleme
+// listeye item ekleme fonksiyonu #itemm,itemeklee
   void _addItemField() {
     setState(() {
       _itemControllers.add(TextEditingController());
@@ -366,7 +366,7 @@ class _AddItemPageState extends State<AddItemPage> {
     });
   }
 
-// listeden item silme #listedenitemsilme
+// listeden item silme fonnksiyonu #removeitemm
   void _removeItemField(int index) {
     setState(() {
       if (_itemControllers.length > 1) {
@@ -402,28 +402,26 @@ class _AddItemPageState extends State<AddItemPage> {
 
   // Resmi kalıcı olarak saklayan fonksiyon
   Future<String> _saveImagePermanently(File image) async {
-    final directory = await getApplicationDocumentsDirectory(); // Kalıcı dizin
-    final fileName = image.path.split('/').last; // Dosya adını alıyoruz
-    final newPath = '${directory.path}/$fileName'; // Yeni dosya yolu
+    final directory = await getApplicationDocumentsDirectory();
+    final fileName = image.path.split('/').last;
+    final newPath = '${directory.path}/$fileName';
 
-    final savedImage =
-        await image.copy(newPath); // Resmi yeni yola kopyalıyoruz
-    return savedImage.path; // Kalıcı dosya yolunu döndürüyoruz
+    final savedImage = await image.copy(newPath);
+    return savedImage.path;
   }
 
-  //itemler için resim seçme #resimseçmee,itemresimm
+  //Resim seçme fonksiyonu #resimm,imgg
   Future<void> _pickImage(int index) async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
       File file = File(image.path);
 
-      String imagePath =
-          await _saveImagePermanently(file); // Resmi kaydediyoruz
+      String imagePath = await _saveImagePermanently(file);
       print("Image path: $imagePath");
 
       setState(() {
         if (_imagePaths.length > index) {
-          _imagePaths[index] = imagePath; // Kalıcı dosya yolunu kaydediyoruz
+          _imagePaths[index] = imagePath;
         }
       });
     }
@@ -438,6 +436,7 @@ class _AddItemPageState extends State<AddItemPage> {
         surfaceTintColor: Colors.green[400],
         title: const Center(child: Text('Yeni Tablo Ekle')),
         actions: [
+          //Ay bilgilendirme sayfası #bilgii,infoo
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () {
@@ -523,11 +522,6 @@ class _AddItemPageState extends State<AddItemPage> {
                         ),
                       ),
                     ),
-                    // IconButton(
-                    //   padding: EdgeInsets.zero,
-                    //   onPressed: () {},
-                    //   icon: const Icon(Icons.more_vert, color: Colors.green),
-                    // ),
                   ],
                 ),
               ),
@@ -540,7 +534,7 @@ class _AddItemPageState extends State<AddItemPage> {
                   minLines: 1,
                   maxLines: null,
                   decoration: InputDecoration(
-                    hintText: 'Başlık',
+                    hintText: 'Başlık', // #başlıkk
                     hintStyle: const TextStyle(fontStyle: FontStyle.italic),
                     icon: const Icon(Icons.title),
                     errorText: _isTitleEmpty ? 'Başlık boş bırakılamaz' : null,
@@ -556,7 +550,7 @@ class _AddItemPageState extends State<AddItemPage> {
                   minLines: 1,
                   maxLines: null,
                   decoration: const InputDecoration(
-                    hintText: 'Alt Başlık',
+                    hintText: 'Alt Başlık', //#altbaşlıkk
                     hintStyle: TextStyle(fontStyle: FontStyle.italic),
                     icon: Icon(Icons.subtitles),
                     isCollapsed: true,
@@ -594,7 +588,7 @@ class _AddItemPageState extends State<AddItemPage> {
                                   minLines: 1,
                                   maxLines: null,
                                   decoration: InputDecoration(
-                                    hintText: 'Item ${index + 1}',
+                                    hintText: 'Item ${index + 1}', // #itemm
                                     prefixIcon: _imagePaths[index] != null
                                         ? Padding(
                                             padding: const EdgeInsets.only(
@@ -631,30 +625,29 @@ class _AddItemPageState extends State<AddItemPage> {
                                               icon: const Icon(
                                                   Icons.more_vert_sharp),
                                               onPressed: () => showCustomMenu(
+                                                  //#3noktaa
                                                   context,
                                                   index,
                                                   _menuKeys[index],
-                                                  _itemControllers, // AddItemPage'deki itemController listesi
-                                                  _imagePaths, // AddItemPage'deki imagePaths listesi
-                                                  null, // selectedImages kullanmıyorsanız null geçiyoruz
-                                                  _imagePaths, // existingImagePaths olarak da imagePaths kullanılmalı
+                                                  _itemControllers,
+                                                  _imagePaths,
+                                                  null,
+                                                  _imagePaths,
                                                   _picker,
                                                   options,
                                                   _newOptionController,
                                                   _isAddingNewOption,
                                                   setState,
-                                                  (String value) => _addNewOption(
-                                                      value), // addNewOption fonksiyonu kullanılıyor
-                                                  (int index) => _removeOption(
-                                                      index), // removeOption fonksiyonu kullanılıyor
+                                                  (String value) =>
+                                                      _addNewOption(value),
+                                                  (int index) =>
+                                                      _removeOption(index),
                                                   (String pastedText) {
-                                                // Panodan yapıştırılan veriyi item controller'a aktar
                                                 setState(() {
                                                   _itemControllers[index].text =
                                                       pastedText;
                                                 });
                                               }, (String imagePath) {
-                                                // Resim ekleme işlemi
                                                 setState(() {
                                                   _imagePaths[index] =
                                                       imagePath;
@@ -669,6 +662,7 @@ class _AddItemPageState extends State<AddItemPage> {
                                               constraints:
                                                   const BoxConstraints(),
                                               icon: const Icon(
+                                                  //ite silme ikoun #sill
                                                   Icons.remove_circle_outline,
                                                   color: Colors.red),
                                               onPressed: () =>
