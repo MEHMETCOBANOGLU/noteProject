@@ -29,6 +29,4 @@ class AppColors {
   static const Color errorColor = Color(0xFFD32F2F); // Hata için kırmızı
   static const Color warningColor = Color(0xFFFF9800); // Uyarı için turuncu
   static const Color infoColor = Color(0xFF03A9F4);
-
-  static var selectedRadioColor; // Bilgi için açık mavi
 }

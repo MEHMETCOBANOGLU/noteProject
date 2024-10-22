@@ -1,4 +1,4 @@
-//itemler için bir model oluşturuldu
+//itemler için bir model oluşturuldu #modell,itemsmodell
 class Item {
   Item({
     required this.id,

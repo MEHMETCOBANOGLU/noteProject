@@ -49,7 +49,6 @@ class _EditItemPageState extends State<EditItemPage> {
         .map((item) => TextEditingController(text: item))
         .toList();
 
-    // Ensure consistency in list length
     _existingImagePaths = widget.item.imageUrls ?? [];
     _selectedImages = List<File?>.generate(
       _existingImagePaths.length,
@@ -57,29 +56,26 @@ class _EditItemPageState extends State<EditItemPage> {
       growable: true,
     );
 
-    // Ensure _selectedImages and _existingImagePaths have the same length as _itemControllers
     if (_itemControllers.length > _selectedImages.length) {
       for (int i = _selectedImages.length; i < _itemControllers.length; i++) {
-        _selectedImages.add(null); // Add empty entries to match length
+        _selectedImages.add(null);
       }
     }
     if (_itemControllers.length > _existingImagePaths.length) {
       for (int i = _existingImagePaths.length;
           i < _itemControllers.length;
           i++) {
-        _existingImagePaths.add(""); // Add empty entries to match length
+        _existingImagePaths.add("");
       }
     }
 
     _menuKeys = List.generate(_itemControllers.length, (index) => GlobalKey());
-
     _loadOptionsFromDatabase();
-
     _focusNodes =
         List.generate(_itemControllers.length, (index) => FocusNode());
   }
 
-  //Seçenekler listboxu için veritabanından verileri yükler
+  //Seçenekler listboxu için veritabanından verileri yükler #listboxx
   Future<void> _loadOptionsFromDatabase() async {
     List<String> dbOptions = await _sqliteDatasource.getOptions();
     setState(() {
@@ -88,7 +84,7 @@ class _EditItemPageState extends State<EditItemPage> {
     });
   }
 
-  //Tablodaki düzenlenen verileri kaydeder
+  //Tablodaki düzenlenen verileri kaydeder #kaydett,savee
   Future<void> _saveEditedTable() async {
     List<String> items =
         _itemControllers.map((controller) => controller.text).toList();
@@ -105,18 +101,17 @@ class _EditItemPageState extends State<EditItemPage> {
 
     bool success = await _sqliteDatasource.addOrUpdateNote(
       Item(
-        id: const Uuid().v4(),
+        id: widget.item.id, // Mevcut id'yi kullanın
         headerValue: _titleController.text,
         subtitle: _subtitleController.text,
         expandedValue: items,
-        imageUrls: imagePaths, // Dosya yolu kaydediliyor
+        imageUrls: imagePaths,
         tabId: widget.item.tabId,
       ),
     );
 
     if (success) {
-      Navigator.pop(context,
-          "saved"); // Düzenleme başarılı olduğunda "saved" döndürüyoruz.
+      Navigator.pop(context, "saved");
     } else {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Tablo düzenlenemedi!')));
@@ -130,8 +125,7 @@ class _EditItemPageState extends State<EditItemPage> {
       for (int i = _existingImagePaths.length;
           i < _itemControllers.length;
           i++) {
-        _existingImagePaths
-            .add(""); // Eksik öğeleri boş string ile dolduruyoruz
+        _existingImagePaths.add("");
       }
     }
 
@@ -139,11 +133,8 @@ class _EditItemPageState extends State<EditItemPage> {
       int index = entry.key;
       TextEditingController controller = entry.value;
 
-      Map<String, dynamic> itemData = {
-        'text': controller.text,
-      };
+      Map<String, dynamic> itemData = {'text': controller.text};
 
-      // Eğer imagePath boş değilse, image alanını ekliyoruz, yoksa boş string ekliyoruz
       itemData['image'] = _existingImagePaths[index] ?? '';
 
       return itemData;
@@ -151,15 +142,14 @@ class _EditItemPageState extends State<EditItemPage> {
 
     var dataMap = {
       'title': _titleController.text,
-      'subtitle': _subtitleController.text.isNotEmpty
-          ? _subtitleController.text
-          : '', // Eğer subtitle boşsa boş string olarak kaydediyoruz
+      'subtitle':
+          _subtitleController.text.isNotEmpty ? _subtitleController.text : '',
       'items': items,
     };
 
     String yamlData = json2yaml(dataMap);
 
-    // Show YAML Preview Dialog for Copy
+    //Tümünü kopyalama işlemi için yaml önizlemesi pnceresi #yamll
     await _showYamlPreviewDialog(
       title: 'YAML Önizlemesi',
       content: yamlData,
@@ -182,19 +172,13 @@ class _EditItemPageState extends State<EditItemPage> {
   Future<void> _pasteAllFromClipboard() async {
     ClipboardData? data = await Clipboard.getData('text/plain');
 
-    // Panodaki veriyi konsola yazdırarak kontrol edin
-    print("Panodaki veri: ${data?.text}");
-
     if (data == null || data.text == null || data.text!.isEmpty) {
       print("Panoda geçerli veri yok.");
       _showInvalidClipboardSnackbar();
       return;
     }
-
     String yamlText = data.text!;
-
     try {
-      // YAML verisini yükleyin ve kontrol edin
       var yamlMap = loadYaml(yamlText);
       print("YAML başarıyla yüklendi: $yamlMap");
 
@@ -207,16 +191,13 @@ class _EditItemPageState extends State<EditItemPage> {
       List<String> texts = [];
 
       for (var item in items) {
-        // Eğer text null ise boş string ata
         texts.add(item['text'] ?? '');
-        // Eğer image null ise boş string ata
         imagePaths.add(item['image'] ?? '');
       }
 
-      // YAML Önizleme Dialogunu Göster
       await _showYamlPreviewDialog(
         title: 'YAML Önizlemesi',
-        content: yamlText, // Orijinal YAML metnini göster
+        content: yamlText,
         actionLabel: 'Yapıştır',
         onActionPressed: () {
           setState(() {
@@ -225,23 +206,22 @@ class _EditItemPageState extends State<EditItemPage> {
 
             _itemControllers.clear();
             _existingImagePaths.clear();
-            _selectedImages.clear(); // Yeni eklenen
+            _selectedImages.clear();
             _menuKeys.clear();
-            _focusNodes.clear(); // Yeni eklenen
+            _focusNodes.clear();
 
-            // Yeni itemleri ve resim yollarını ekleyin
             for (int i = 0; i < texts.length; i++) {
               _itemControllers.add(TextEditingController(text: texts[i]));
               _existingImagePaths.add(imagePaths[i]);
               _selectedImages.add(
                 imagePaths[i]!.isNotEmpty ? File(imagePaths[i]!) : null,
-              ); // Yeni eklenen
+              );
               _menuKeys.add(GlobalKey());
-              _focusNodes.add(FocusNode()); // Yeni eklenen
+              _focusNodes.add(FocusNode());
             }
           });
 
-          Navigator.of(context).pop(); // Dialogu kapat
+          Navigator.of(context).pop();
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -269,7 +249,7 @@ class _EditItemPageState extends State<EditItemPage> {
     );
   }
 
-  // YAML Önizleme Dialogu
+  //Yaml önizlemesi pnceresi #yamll
   Future<void> _showYamlPreviewDialog({
     required String title,
     required String content,
@@ -300,7 +280,7 @@ class _EditItemPageState extends State<EditItemPage> {
                 ),
                 ElevatedButton(
                   child: Text(actionLabel,
-                      style: TextStyle(
+                      style: const TextStyle(
                           color: Colors.green, fontWeight: FontWeight.bold)),
                   onPressed: onActionPressed,
                 ),
@@ -322,8 +302,7 @@ class _EditItemPageState extends State<EditItemPage> {
     return savedImage.path;
   }
 
-  //itemler için resim seçme #resimseçmee,itemresimm
-
+  //Resim seçme fonksiyonu #resimm,img,resimseçmee
   Future<void> _pickImage(int index) async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
@@ -342,7 +321,7 @@ class _EditItemPageState extends State<EditItemPage> {
   //seçenekler listboxundan seçenek silme
   void _removeOption(int index) {
     setState(() {
-      options.removeAt(index); // İlgili indeksteki elemanı sil
+      options.removeAt(index);
     });
   }
 
@@ -359,19 +338,16 @@ class _EditItemPageState extends State<EditItemPage> {
     }
   }
 
-// listeye item ekleme #listeyeitemekleme
+// listeye item ekleme  fonksiyonu #itemeklee
   void _addItemField() {
     setState(() {
       _itemControllers.add(TextEditingController());
-      _existingImagePaths.add(""); // Add empty entry for image path
-      _selectedImages.add(null); // Add empty entry for selected image
+      _existingImagePaths.add("");
+      _selectedImages.add(null);
       _focusNodes.add(FocusNode());
-
-      // Ensure _menuKeys also gets a new key for the new item
       _menuKeys.add(GlobalKey());
     });
 
-    // Scroll to the new item and focus it
     Future.delayed(const Duration(milliseconds: 100), () {
       _focusNodes.last.requestFocus();
       _scrollController.animateTo(
@@ -382,7 +358,7 @@ class _EditItemPageState extends State<EditItemPage> {
     });
   }
 
-  //listeden item silme #listedenitemsilme
+  //listeden item silme #listedenitemsilme #itemsilmee
   void _removeItemField(int index) async {
     // Eğer metin veya görsel yoksa doğrudan sil
     if (_itemControllers[index].text.isEmpty &&
@@ -450,7 +426,7 @@ class _EditItemPageState extends State<EditItemPage> {
             headerValue: _titleController.text,
             subtitle: _subtitleController.text,
             expandedValue: items,
-            imageUrls: imagePaths, // Dosya yolu kaydediliyor
+            imageUrls: imagePaths,
             tabId: widget.item.tabId,
           ),
         );
@@ -466,7 +442,7 @@ class _EditItemPageState extends State<EditItemPage> {
     }
   }
 
-  // düzenleme sayfasında tabloyu silme
+  //Düzenleme sayfasında tabloyu silme #deletetablee,sill
   void _deleteTable(BuildContext context) async {
     bool? confirm = await showDialog<bool>(
       context: context,
@@ -529,7 +505,7 @@ class _EditItemPageState extends State<EditItemPage> {
     super.dispose();
   }
 
-  // Kaydet butonu yanındaki 3 noktaya basınca açılan "Tabloyu Klonla" menüsü
+  // Kaydet butonu yanındaki 3 noktaya basınca açılan "Tabloyu Klonla" menüsü #3noktaa,klonn
   void _showCloneMenu(BuildContext context, GlobalKey key) {
     final RenderBox renderBox =
         key.currentContext!.findRenderObject() as RenderBox;
@@ -601,10 +577,7 @@ class _EditItemPageState extends State<EditItemPage> {
     // Veritabanından mevcut öğeleri alın
     List<Item> existingItems =
         await _sqliteDatasource.getNotes(widget.item.tabId);
-
     String clonedTitle;
-
-    // Kopyalama için temel isim
     String baseName = originalTitle;
 
     // İlk kopyalama için varsayılan ek
@@ -622,6 +595,72 @@ class _EditItemPageState extends State<EditItemPage> {
     }
 
     return clonedTitle;
+  }
+
+  //3 nokta ikonuna tıklandıgında açılan menu #3noktaikonmenüü,3noktaikonuu
+  void _showCustomMenu(BuildContext context, int index, GlobalKey key) {
+    final RenderBox renderBox =
+        key.currentContext!.findRenderObject() as RenderBox;
+    final Offset offset = renderBox.localToGlobal(Offset.zero);
+
+    showMenu(
+      elevation: 4.0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+      context: context,
+      position: RelativeRect.fromLTRB(
+        offset.dx + renderBox.size.width,
+        offset.dy + renderBox.size.height,
+        offset.dx,
+        offset.dy,
+      ),
+      items: [
+        PopupMenuItem(
+          child: ListTile(
+            leading: const Icon(Icons.photo),
+            title: const Text('Resim Ekle'),
+            onTap: () async {
+              Navigator.pop(context);
+              await _pickImage(index); // Resim seçme fonksiyonunu kullanıyoruz
+            },
+          ),
+        ),
+        PopupMenuItem(
+          child: ListTile(
+            leading: const Icon(Icons.paste),
+            title: const Text('Yapıştır'),
+            onTap: () async {
+              Navigator.pop(context);
+              ClipboardData? data = await Clipboard.getData('text/plain');
+              if (data != null) {
+                setState(() {
+                  _itemControllers[index].text = data.text ?? '';
+                });
+              }
+            },
+          ),
+        ),
+        PopupMenuItem(
+          child: ListTile(
+            leading: const Icon(Icons.list),
+            title: const Text('Liste Kutusu'),
+            onTap: () {
+              Navigator.pop(context);
+              showListBoxDialog(
+                  context,
+                  index,
+                  _itemControllers,
+                  options,
+                  _newOptionController,
+                  _isAddingNewOption,
+                  setState,
+                  _addNewOption, // Seçenek ekleme
+                  _removeOption // Seçenek silme
+                  );
+            },
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -645,7 +684,7 @@ class _EditItemPageState extends State<EditItemPage> {
             padding: const EdgeInsets.all(8.0),
             child: IconButton(
               icon: const Icon(Icons.delete_sweep,
-                  color: Colors.red, size: 30), //çöpkutusuu,ikonn
+                  color: Colors.red, size: 30), //çöpkutusuu,sill
               onPressed: () async {
                 _deleteTable(context);
               },
@@ -683,7 +722,6 @@ class _EditItemPageState extends State<EditItemPage> {
                       ),
                     ),
                   ),
-                  // const SizedBox(width: 2),
                   Flexible(
                     child: ElevatedButton(
                       onPressed: _pasteAllFromClipboard,
@@ -744,13 +782,12 @@ class _EditItemPageState extends State<EditItemPage> {
                 minLines: 1,
                 maxLines: null,
                 decoration: const InputDecoration(
-                  hintText: 'Başlık',
+                  hintText: 'Başlık', //#başlıkk
                   hintStyle: TextStyle(fontStyle: FontStyle.italic),
                   icon: Icon(Icons.title),
-                  // errorText: _isTitleEmpty ? 'Başlık boş bırakılamaz' : null,
                 ),
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold, // Yazıyı kalın yapar
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 10),
@@ -762,14 +799,14 @@ class _EditItemPageState extends State<EditItemPage> {
                   minLines: 1,
                   maxLines: null,
                   decoration: const InputDecoration(
-                    hintText: 'Alt Başlık',
+                    hintText: 'Alt Başlık', //#altbaşlıkk
                     hintStyle: TextStyle(fontStyle: FontStyle.italic),
                     icon: Icon(Icons.subtitles),
                     isCollapsed: true,
                     isDense: true,
                   ),
                   style: const TextStyle(
-                    color: Colors.black45, // Yazıyı kalın yapar
+                    color: Colors.black45,
                   ),
                 ),
               ),
@@ -780,7 +817,6 @@ class _EditItemPageState extends State<EditItemPage> {
                   scrollbarOrientation: ScrollbarOrientation.right,
                   controller: _scrollController,
                   thumbVisibility: true,
-                  // trackVisibility: true,
                   child: Padding(
                     padding: const EdgeInsets.only(right: 8.0),
                     child: ReorderableListView.builder(
@@ -805,13 +841,13 @@ class _EditItemPageState extends State<EditItemPage> {
                       },
                       itemBuilder: (context, index) {
                         if (_focusNodes.length <= index) {
-                          _focusNodes.add(FocusNode()); // Add missing FocusNode
+                          _focusNodes.add(FocusNode());
                         }
 
                         return ListTile(
                           contentPadding: EdgeInsets.zero,
                           key: ValueKey(index),
-                          // #Reorderablee,dragg,dropp
+                          //Liste sıra değiştirme #Reorderablee,dragg,dropp
                           leading: ReorderableDragStartListener(
                             index: index,
                             child: const Icon(
@@ -862,39 +898,10 @@ class _EditItemPageState extends State<EditItemPage> {
                                         icon: const Icon(Icons.more_vert_sharp),
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
+                                        // key: _menuKeys[index],
                                         onPressed: () {
-                                          showCustomMenu(
-                                              context,
-                                              index,
-                                              _menuKeys[index],
-                                              _itemControllers, // EditItemPage'deki itemController listesi
-                                              _existingImagePaths, // EditItemPage'deki imagePaths listesi
-                                              _selectedImages, // selectedImages listesi burada kullanılabilir
-                                              _existingImagePaths, // existingImagePaths
-                                              _picker,
-                                              options,
-                                              _newOptionController,
-                                              _isAddingNewOption,
-                                              setState,
-                                              (String value) => _addNewOption(
-                                                  value), // addNewOption fonksiyonu kullanılıyor
-                                              (int index) => _removeOption(
-                                                  index), // removeOption fonksiyonu kullanılıyor
-                                              (String pastedText) {
-                                            // Panodan yapıştırılan veriyi item controller'a aktar
-                                            setState(() {
-                                              _itemControllers[index].text =
-                                                  pastedText;
-                                            });
-                                          }, (String imagePath) {
-                                            // Resim seçildikten sonra imagePaths ve selectedImages'ı güncelle
-                                            setState(() {
-                                              _existingImagePaths[index] =
-                                                  imagePath;
-                                              _selectedImages[index] = File(
-                                                  imagePath); // Seçilen resmin yolunu kaydet
-                                            });
-                                          });
+                                          _showCustomMenu(
+                                              context, index, _menuKeys[index]);
                                         },
                                       ),
                                     ),

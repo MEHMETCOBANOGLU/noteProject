@@ -16,8 +16,7 @@ import 'package:http/http.dart' as http;
 import '../data/database.dart';
 import '../model/items.dart';
 
-// Firebase'e dosya yükleme ve link paylaşma
-
+//Export Bulut link paylaş fonksiyonu #bulutt,paylaşş
 Future<void> exportToFirebase(BuildContext context) async {
   try {
     // SQLite veritabanından tüm sekmeleri ve notları alıyoruz
@@ -98,63 +97,50 @@ Future<void> exportToFirebase(BuildContext context) async {
       }
     }
 
-    // Zip dosyasını kapat
     zipEncoder.close();
 
     String formattedDate =
         DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
 
-    // Firebase'e zip dosyasını yükle
     FirebaseStorage storage = FirebaseStorage.instance;
     File zipFile = File(zipFilePath);
     TaskSnapshot uploadTask = await storage
         .ref('tablify/exports/Tablify_dataExport_$formattedDate.zip')
         .putFile(zipFile);
 
-    // Paylaşılabilir link oluştur
     String downloadUrl = await uploadTask.ref.getDownloadURL();
 
-    // Linki panoya kopyala ve paylaşma ekranını aç
     Clipboard.setData(ClipboardData(text: downloadUrl));
     await Share.share('Verileriniz burada: $downloadUrl');
 
-    // Başarı mesajı göster
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text(
           'Veriler başarıyla yüklendi ve paylaşılabilir link oluşturuldu.'),
     ));
   } catch (e) {
     // Hata mesajı
     print('Hata: $e');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text('Veri yüklenirken bir hata oluştu.'),
     ));
   }
 }
 
-// Cihazdaki verileri dışarı aktarır #exportdataa,dışarıaktarr
-// Dosya paylaşımı
+//Exporta dosya olarak paylaşma fonksiyonu #dosyaa,paylaşş
 Future<void> exportAsFile(BuildContext context) async {
   try {
-    // SQLite veritabanından tüm sekmeleri ve onlara ait notları alıyoruz
     List<TabItem> allTabs = await SQLiteDatasource().getTabs();
-    Map<String, dynamic> allData =
-        {}; // Tüm verileri tutmak için bir harita (map)
+    Map<String, dynamic> allData = {};
 
     for (TabItem tab in allTabs) {
-      // Her sekmeye ait notları alıyoruz
       List<Item> tabNotes = await SQLiteDatasource().getNotes(tab.id);
-      allData[tab.name] = tabNotes
-          .map((e) => e.toMap())
-          .toList(); // Her sekmenin notlarını ekliyoruz
+      allData[tab.name] = tabNotes.map((e) => e.toMap()).toList();
     }
 
-    // Veriyi JSON formatına çevir ve sıkıştır
     String jsonData = jsonEncode(allData);
     List<int> binaryData = utf8.encode(jsonData);
     List<int>? compressedData = GZipEncoder().encode(binaryData);
 
-    // Dosya sistemine kaydet
     final directory = await getApplicationDocumentsDirectory();
     String formattedDate =
         DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
@@ -162,17 +148,14 @@ Future<void> exportAsFile(BuildContext context) async {
         File('${directory.path}/Tablify_dataExport_$formattedDate.bin');
     await file.writeAsBytes(compressedData!);
 
-    // Dosyayı paylaş
     await Share.shareXFiles([XFile(file.path)],
         text: 'Here is your data export');
 
-    // Başarı mesajı göster
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Veriler başarıyla dışa aktarıldı.')),
     );
     Navigator.of(context).pop();
   } catch (e) {
-    // Hata mesajı göster
     print('Veri dışa aktarılırken hata oluştu: $e');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -181,30 +164,24 @@ Future<void> exportAsFile(BuildContext context) async {
   }
 }
 
-// Dosyayı cihazın indirilenler klasörüne kaydetme
+//Export Dosyayı cihazın indirilenler klasörüne kaydetme #dosyalarımakaydett
 Future<void> saveToDownloads(BuildContext context) async {
   try {
-    // SQLite veritabanından tüm sekmeleri ve onlara ait notları alıyoruz
     List<TabItem> allTabs = await SQLiteDatasource().getTabs();
-    Map<String, dynamic> allData =
-        {}; // Tüm verileri tutmak için bir harita (map)
+    Map<String, dynamic> allData = {};
 
     for (TabItem tab in allTabs) {
-      // Her sekmeye ait notları alıyoruz
       List<Item> tabNotes = await SQLiteDatasource().getNotes(tab.id);
       allData[tab.name] = tabNotes
           .map((e) => e.toMap())
           .toList(); // Her sekmenin notlarını ekliyoruz
     }
 
-    // Veriyi JSON formatına çevir ve sıkıştır
     String jsonData = jsonEncode(allData);
     List<int> binaryData = utf8.encode(jsonData);
     List<int>? compressedData = GZipEncoder().encode(binaryData);
 
-    // Dosya sistemine kaydet
-    final directory =
-        Directory('/storage/emulated/0/Download'); // İndirilenler klasörü yolu
+    final directory = Directory('/storage/emulated/0/Download');
     String formattedDate =
         DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
     final file =
@@ -212,34 +189,30 @@ Future<void> saveToDownloads(BuildContext context) async {
     await file.writeAsBytes(compressedData!);
 
     // Başarı mesajı göster
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text('Dosya başarıyla indirilenler klasörüne kaydedildi.'),
     ));
     Navigator.of(context).pop();
   } catch (e) {
     // Hata mesajı göster
     print('Dosya kaydedilirken hata oluştu: $e');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text('Dosya kaydedilirken bir hata oluştu.'),
     ));
   }
 }
 
-// HTML dosyası olarak Firebase'e yükleme
-
+//Export HTML dosyası olarak Firebase'e yükleme #htmll
 Future<void> exportAsHtml(BuildContext context) async {
   try {
-    // Verileri veritabanından al
     List<TabItem> allTabs = await SQLiteDatasource().getTabs();
     Map<String, dynamic> allData = {};
 
-    // Her sekmedeki notları al
     for (TabItem tab in allTabs) {
       List<Item> tabNotes = await SQLiteDatasource().getNotes(tab.id);
       allData[tab.name] = tabNotes.map((e) => e.toMap()).toList();
     }
 
-    // HTML içeriğini başlat
     String htmlContent = """
 <!DOCTYPE html>
 <html lang="tr">
@@ -252,7 +225,6 @@ Future<void> exportAsHtml(BuildContext context) async {
   <h1>Export Edilen Veriler</h1>
 """;
 
-    // Tüm sekmeler ve ilgili notları HTML'e ekle
     allTabs.forEach((tab) {
       htmlContent += "<fieldset><legend>${tab.name}</legend>";
 
@@ -261,7 +233,6 @@ Future<void> exportAsHtml(BuildContext context) async {
         Item item = Item.fromMap(itemMap);
         htmlContent +=
             "<table border='1' cellpadding='5' style='width: 100%;'>";
-        // Her bir öğe (item) için sütunlar yerine satırlar oluşturuluyor
         htmlContent +=
             "<tr><th style='text-align: left; width: 30%;'>Başlık</th><td>${item.headerValue}</td></tr>";
 
@@ -276,7 +247,6 @@ Future<void> exportAsHtml(BuildContext context) async {
     });
     htmlContent += "</body></html>";
 
-    // HTML dosyasını kaydet
     final directory = await getApplicationDocumentsDirectory();
     String fileName = 'export_${Uuid().v4()}.html';
     File file = File('${directory.path}/$fileName');

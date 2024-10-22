@@ -2,8 +2,7 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:Tablify/data/aym_data.dart';
 
-//AYM bilgilendirme sayfasi
-
+//AYM bilgilendirme sayfasi #bilgii,infoo
 class AymGuidePage extends StatefulWidget {
   const AymGuidePage({super.key});
 
@@ -14,7 +13,7 @@ class AymGuidePage extends StatefulWidget {
 class _AymGuidePageState extends State<AymGuidePage> {
   final PageController _pageController = PageController(initialPage: 0);
   int currentPage = 0;
-
+  // Bir sonraki sayfaya ilerleme fonksiyonu #ilerlee
   gotoNextPage() {
     if (currentPage + 1 < aymData.length) {
       _pageController.nextPage(

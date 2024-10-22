@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-// Android native kodu ile clipboard'a resmi kopyalama
+// Android native kodu ile clipboard'a resmi kopyalama #copyimgg
 Future<void> copyImageToClipboard(
     BuildContext context, String imagePath) async {
   const platform = MethodChannel('clipboard_image');

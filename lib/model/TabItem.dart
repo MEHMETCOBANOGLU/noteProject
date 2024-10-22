@@ -1,3 +1,4 @@
+//sekmeler için bir model oluşturuldu #modell,tabmodell
 class TabItem {
   String id;
   String name;

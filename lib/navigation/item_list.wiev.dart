@@ -7,7 +7,6 @@ import 'dart:io';
 import 'package:Tablify/model/items.dart';
 import 'package:Tablify/pages/show_image_page.dart';
 import 'package:image_picker/image_picker.dart';
-import '../aym/resim_kopyalama.dart';
 import '../pages/edit_item_page.dart';
 
 import '../utility/image_copy.dart';
@@ -86,12 +85,10 @@ class _ListItemState extends State<ListItem> {
   }
 
   void _updateLists() {
-    // Update _itemControllers
     _itemControllers = widget.item.expandedValue
         .map((item) => TextEditingController(text: item))
         .toList();
 
-    // Update _existingImagePaths
     _existingImagePaths = List<String?>.generate(
         widget.item.expandedValue.length,
         (index) => widget.item.imageUrls != null &&
@@ -99,11 +96,9 @@ class _ListItemState extends State<ListItem> {
             ? widget.item.imageUrls![index]
             : null);
 
-    // Update _selectedImages
     _selectedImages =
         List<File?>.generate(widget.item.expandedValue.length, (index) => null);
 
-    // Synchronize _menuKeys
     if (_menuKeys.length < _itemControllers.length) {
       _menuKeys.addAll(List.generate(
           _itemControllers.length - _menuKeys.length, (index) => GlobalKey()));
@@ -111,7 +106,6 @@ class _ListItemState extends State<ListItem> {
       _menuKeys = _menuKeys.sublist(0, _itemControllers.length);
     }
 
-    // Synchronize _focusNodes
     if (_focusNodes.length < _itemControllers.length) {
       _focusNodes.addAll(List.generate(
           _itemControllers.length - _focusNodes.length,
@@ -125,7 +119,7 @@ class _ListItemState extends State<ListItem> {
       _focusNodes = _focusNodes.sublist(0, _itemControllers.length);
     }
 
-    setState(() {}); // Trigger a rebuild with updated lists
+    setState(() {});
   }
 
   @override
@@ -166,7 +160,7 @@ class _ListItemState extends State<ListItem> {
       MaterialPageRoute(builder: (context) => EditItemPage(item: item)),
     );
 
-    // Geri dönen sonucu kontrol ediyoruz
+    // Geri dönen sonuçları kontrol edip sayfayı yeniliyoruz
     if (result == "saved") {
       widget.onTableEdited();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -190,9 +184,6 @@ class _ListItemState extends State<ListItem> {
 
   @override
   Widget build(BuildContext context) {
-    // _menuKeys listesini _itemControllers listesinin uzunluğuna göre senkronize et
-    // Ensure all lists are synchronized with _itemControllers
-    // (This might be redundant if handled in didUpdateWidget)
     if (_menuKeys.length < _itemControllers.length) {
       _menuKeys.addAll(List.generate(
           _itemControllers.length - _menuKeys.length, (index) => GlobalKey()));
@@ -216,7 +207,7 @@ class _ListItemState extends State<ListItem> {
           headerBuilder: (BuildContext context, bool expanded) {
             return Stack(
               children: [
-                // Main header content
+                //tablodaki Başlık ve alt başlık kısmı
                 Container(
                   color: Colors.green[50],
                   child: Row(
@@ -240,6 +231,7 @@ class _ListItemState extends State<ListItem> {
                           },
                         ),
                       ),
+                      // düzenleme sayfası için ikon #editt
                       IconButton(
                         color: Colors.grey,
                         padding: EdgeInsets.zero,
@@ -248,6 +240,7 @@ class _ListItemState extends State<ListItem> {
                           _navigateAndEditItem(context, widget.item);
                         },
                       ),
+                      //expand collapse ikonu #expandd,collapsee
                       IconButton(
                         color: Colors.grey,
                         padding: EdgeInsets.zero,
@@ -284,6 +277,7 @@ class _ListItemState extends State<ListItem> {
               ],
             );
           },
+          //tablodaki items ve resim kısmı
           body: Column(
             children: widget.item.expandedValue.asMap().entries.map((entry) {
               int idx = entry.key;
@@ -295,7 +289,7 @@ class _ListItemState extends State<ListItem> {
                   : null;
 
               return GestureDetector(
-                // İsim, dil, seçenekler ve resim gibi bilgileri düzenleme sayfasına gönderme
+                // tek click ile etiket düzenleme penceresi #etiketdüzenlemee
                 onTap: () {
                   handleTapOnText(
                     context,
@@ -307,15 +301,8 @@ class _ListItemState extends State<ListItem> {
                     },
                   );
                 },
-                // Uzun basıldığında resmi ve texti panoya kopyalama
+                // Uzun click ile item güncelle penceresi açılır #itemgüncellee
                 onLongPress: () {
-                  if (imageUrl != null && imageUrl.isNotEmpty) {
-                    copyImageToClipboard(context, imageUrl);
-                  }
-                  _copyText(text);
-                },
-                // item edit penceresine yönlendirme
-                onHorizontalDragStart: (DragStartDetails details) {
                   if (idx < _menuKeys.length) {
                     showCustomEditMenu(
                       context,
@@ -328,18 +315,25 @@ class _ListItemState extends State<ListItem> {
                       imageUrl,
                       _itemControllers,
                       setState,
-                      _menuKeys, // Pass _menuKeys
-                      _focusNodes, // Pass _focusNodes
-                      _sqliteDatasource, // Pass _sqliteDatasource
-                      widget.item, // Pass widget.item
-                      widget.onTableEdited, // Pass the callback directly
+                      _menuKeys,
+                      _focusNodes,
+                      _sqliteDatasource,
+                      widget.item,
+                      widget.onTableEdited,
                       _titleController,
                       _subtitleController,
                     );
                   } else {
-                    // Hata durumunda yapılacak işlemler
                     print('Invalid index for _menuKeys: $idx');
                   }
+                },
+
+                //swap ile itemresim ve metin koplama işlemi #swapp,copyy
+                onHorizontalDragStart: (DragStartDetails details) {
+                  if (imageUrl != null && imageUrl.isNotEmpty) {
+                    copyImageToClipboard(context, imageUrl);
+                  }
+                  _copyText(text);
                 },
                 child: Column(
                   children: [
