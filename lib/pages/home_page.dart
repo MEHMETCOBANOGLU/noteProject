@@ -60,7 +60,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   bool _isLoading = true;
   bool _isLoadingData = false;
   bool _isSearching = false;
-  final TextEditingController _searchController = TextEditingController();
+  TextEditingController _searchController = TextEditingController();
 
   List<ScrollController> _scrollControllers = [];
 
@@ -464,7 +464,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   //İmport penceeresi #importt
   Future<void> _showImportPopup(BuildContext context) async {
-    final TextEditingController cloudLinkController = TextEditingController();
+    final TextEditingController _cloudLinkController = TextEditingController();
 
     ClipboardData? clipboardData = await Clipboard.getData('text/plain');
     if (clipboardData != null && clipboardData.text != null) {
@@ -474,7 +474,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         caseSensitive: false,
       );
       if (cloudLinkRegExp.hasMatch(clipboardText)) {
-        cloudLinkController.text = clipboardText;
+        _cloudLinkController.text = clipboardText;
       }
     }
 
@@ -512,11 +512,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 children: [
                   // Bulut Linki Giriş Kısmı
                   TextField(
-                    controller: cloudLinkController,
+                    controller: _cloudLinkController,
                     decoration: InputDecoration(
                       labelText: 'Bulut Linki',
                       suffixIcon: IconButton(
-                        icon: const Icon(Icons.paste),
+                        icon: Icon(Icons.paste),
                         onPressed: () async {
                           ClipboardData? data =
                               await Clipboard.getData('text/plain');
@@ -527,7 +527,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               caseSensitive: false,
                             );
                             if (cloudLinkRegExp.hasMatch(clipboardText)) {
-                              cloudLinkController.text = clipboardText;
+                              _cloudLinkController.text = clipboardText;
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -547,7 +547,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     alignment: Alignment.topRight,
                     child: ElevatedButton(
                       onPressed: () async {
-                        String cloudLink = cloudLinkController.text;
+                        String cloudLink = _cloudLinkController.text;
                         if (cloudLink.isNotEmpty) {
                           setState(() {
                             _isLoadingData =
@@ -679,7 +679,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   for (String base64Image in newItem.imageUrls!) {
                     // Base64'ü çöz ve resmi yerel olarak sakla
                     List<int> imageBytes = base64Decode(base64Image);
-                    String fileName = 'imported_image_${const Uuid().v4()}.jpg';
+                    String fileName = 'imported_image_${Uuid().v4()}.jpg';
                     File tempImage = File('${tempDir.path}/$fileName');
                     await tempImage.writeAsBytes(imageBytes);
 
@@ -732,98 +732,115 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   //İmport dosya  fonksiyonu #dosyaseçç
   Future<void> _importFromFile() async {
-    // Depolama izni isteyin
-    await requestStoragePermission();
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['bin'],
-      );
-
-      if (result == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Herhangi bir dosya seçilmedi.')),
-        );
-        return;
+    // Depolama izni kontrolü
+    var status = await Permission.storage.status;
+    if (!status.isGranted) {
+      if (Platform.isAndroid &&
+          await Permission.manageExternalStorage.request().isGranted) {
+        status = PermissionStatus.granted;
+      } else {
+        status = await Permission.storage.request();
       }
+    }
 
-      File file = File(result.files.single.path!);
-      List<int> binaryData = await file.readAsBytes();
-      List<int> decompressedData = GZipDecoder().decodeBytes(binaryData);
-      String contents = utf8.decode(decompressedData);
-      Map<String, dynamic> jsonData = jsonDecode(contents);
-
-      List<TabItem> existingTabs = await _sqliteDatasource.getTabs();
-      List<TabItem> newTabs = [];
-
-      for (String tabName in jsonData.keys) {
-        TabItem? existingTab = existingTabs.firstWhereOrNull(
-          (tab) => tab.name == tabName,
+    // Eğer izin verilmişse dosya seçme işlemine geç
+    if (status.isGranted) {
+      try {
+        FilePickerResult? result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['bin'],
         );
 
-        String tabId;
-        if (existingTab != null) {
-          tabId = existingTab.id;
-        } else {
-          tabId = const Uuid().v4();
-          int newOrder = _tabs.length + newTabs.length;
-          TabItem newTab = TabItem(id: tabId, name: tabName, order: newOrder);
-          await _sqliteDatasource.addTab(newTab);
-          newTabs.add(newTab);
+        if (result == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Herhangi bir dosya seçilmedi.')),
+          );
+          return;
         }
 
-        List<dynamic> notes = jsonData[tabName];
-        for (var noteMap in notes) {
-          Item newItem = Item.fromMap(noteMap);
-          newItem.tabId = tabId;
+        File file = File(result.files.single.path!);
+        List<int> binaryData = await file.readAsBytes();
+        List<int> decompressedData = GZipDecoder().decodeBytes(binaryData);
+        String contents = utf8.decode(decompressedData);
+        Map<String, dynamic> jsonData = jsonDecode(contents);
 
-          // Resimleri çöz ve yerel olarak sakla
-          if (newItem.imageUrls != null) {
-            List<String> imagePaths = [];
-            for (String base64Image in newItem.imageUrls!) {
-              List<int> imageBytes = base64Decode(base64Image);
-              String fileName = 'imported_image_${const Uuid().v4()}.jpg';
-              File tempImage = File('${file.parent.path}/$fileName');
-              await tempImage.writeAsBytes(imageBytes);
+        List<TabItem> existingTabs = await _sqliteDatasource.getTabs();
+        List<TabItem> newTabs = [];
 
-              // Resmi kalıcı olarak sakla ve yeni yolu al
-              String savedImagePath = await _saveImagePermanently(tempImage);
-              imagePaths.add(savedImagePath);
-            }
-            newItem.imageUrls = imagePaths;
+        for (String tabName in jsonData.keys) {
+          TabItem? existingTab = existingTabs.firstWhereOrNull(
+            (tab) => tab.name == tabName,
+          );
+
+          String tabId;
+          if (existingTab != null) {
+            tabId = existingTab.id;
+          } else {
+            tabId = const Uuid().v4();
+            int newOrder = _tabs.length + newTabs.length;
+            TabItem newTab = TabItem(id: tabId, name: tabName, order: newOrder);
+            await _sqliteDatasource.addTab(newTab);
+            newTabs.add(newTab);
           }
 
-          await _sqliteDatasource.addOrUpdateNote(newItem);
+          List<dynamic> notes = jsonData[tabName];
+          for (var noteMap in notes) {
+            Item newItem = Item.fromMap(noteMap);
+            newItem.tabId = tabId;
+
+            // Resimleri çöz ve yerel olarak sakla
+            if (newItem.imageUrls != null) {
+              List<String> imagePaths = [];
+              for (String base64Image in newItem.imageUrls!) {
+                List<int> imageBytes = base64Decode(base64Image);
+                String fileName = 'imported_image_${Uuid().v4()}.jpg';
+                File tempImage = File('${file.parent.path}/$fileName');
+                await tempImage.writeAsBytes(imageBytes);
+
+                // Resmi kalıcı olarak sakla ve yeni yolu al
+                String savedImagePath = await _saveImagePermanently(tempImage);
+                imagePaths.add(savedImagePath);
+              }
+              newItem.imageUrls = imagePaths;
+            }
+
+            await _sqliteDatasource.addOrUpdateNote(newItem);
+          }
         }
+
+        setState(() {
+          _tabs.addAll(newTabs);
+          _tabDataList.addAll(newTabs
+              .map((tab) =>
+                  TabData(data: [], localExpandedStates: {}, allExpanded: true))
+              .toList());
+          _scrollControllers
+              .addAll(newTabs.map((tab) => ScrollController()).toList());
+
+          _updateTabController();
+          _loadTabs();
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
+        );
+      } catch (e) {
+        print('Veri içe aktarılırken hata oluştu: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Veriler içe aktarılırken bir hata oluştu.')),
+        );
       }
-
-      // setState(() {
-      //   _tabs.addAll(newTabs);
-      //   _loadTabs();
-      // });
-      // Tüm yeni sekmeleri ve verileri ekledikten sonra
-      setState(() {
-        _tabs.addAll(newTabs);
-        _tabDataList.addAll(newTabs
-            .map((tab) =>
-                TabData(data: [], localExpandedStates: {}, allExpanded: true))
-            .toList());
-        _scrollControllers
-            .addAll(newTabs.map((tab) => ScrollController()).toList());
-
-        // TabController'ı güncelle
-        _updateTabController();
-        _loadTabs();
-      });
-
+    } else if (status.isPermanentlyDenied) {
+      print("Permission permanently denied");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
+        const SnackBar(content: Text('Depolama izni ayarlardan verilmeli.')),
       );
-    } catch (e) {
-      print('Veri içe aktarılırken hata oluştu: $e');
+      await openAppSettings();
+    } else {
+      print("Permission denied");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Veriler içe aktarılırken bir hata oluştu.')),
+        const SnackBar(content: Text('Depolama izni verilmedi.')),
       );
     }
   }

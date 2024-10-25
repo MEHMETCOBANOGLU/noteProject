@@ -19,15 +19,38 @@ import '../model/items.dart';
 
 //Export Bulut link paylaş fonksiyonu #bulutt,paylaşş
 Future<void> exportToFirebase(BuildContext context) async {
+  // Depolama iznini kontrol ediyoruz
+  var status = await Permission.storage.status;
+  if (!status.isGranted) {
+    // Eğer Android 11 veya üzeri bir sürümde çalışıyorsak MANAGE_EXTERNAL_STORAGE iznini iste
+    if (Platform.isAndroid &&
+        await Permission.manageExternalStorage.request().isGranted) {
+      status = PermissionStatus.granted;
+    } else {
+      status = await Permission.storage.request();
+      if (status.isPermanentlyDenied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Depolama izni ayarlardan verilmelidir.')),
+        );
+        await openAppSettings();
+        return;
+      } else if (!status.isGranted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Depolama izni verilmedi.')),
+        );
+        return;
+      }
+    }
+  }
+
   try {
     List<TabItem> allTabs = await SQLiteDatasource().getTabs();
     Map<String, dynamic> allData = {};
 
     for (TabItem tab in allTabs) {
       List<Item> tabNotes = await SQLiteDatasource().getNotes(tab.id);
-
       for (var note in tabNotes) {
-        // Resimleri Base64'e çeviriyoruz
         if (note.imageUrls != null && note.imageUrls!.isNotEmpty) {
           List<String> base64Images = [];
           for (String imageUrl in note.imageUrls!) {
@@ -37,42 +60,34 @@ Future<void> exportToFirebase(BuildContext context) async {
               base64Images.add(base64Image);
             }
           }
-          note.imageUrls = base64Images; // Base64 olarak değiştiriyoruz
+          note.imageUrls = base64Images;
         }
       }
-
       allData[tab.name] = tabNotes.map((e) => e.toMap()).toList();
     }
 
     String jsonData = jsonEncode(allData);
-
     final tempDir = await getTemporaryDirectory();
     String jsonFilePath = '${tempDir.path}/data.json';
     File jsonFile = File(jsonFilePath);
     await jsonFile.writeAsString(jsonData);
 
-    // Zip dosyasını oluştur
+    // Dosyayı zip'leyin ve Firebase'e yükleyin
     final zipEncoder = ZipFileEncoder();
-
-    // Zaman damgasını dosya ismine ekliyoruz
     String formattedDate =
         DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
     String zipFilePath = '${tempDir.path}/export_data_$formattedDate.zip';
-
     zipEncoder.create(zipFilePath);
     zipEncoder.addFile(jsonFile);
     zipEncoder.close();
 
     FirebaseStorage storage = FirebaseStorage.instance;
     File zipFile = File(zipFilePath);
-
-    // Zaman damgası ile yeni bir dosya adı oluşturuluyor
     TaskSnapshot uploadTask = await storage
         .ref('tablify/exports/Tablify_dataExport_$formattedDate.zip')
         .putFile(zipFile);
 
     String downloadUrl = await uploadTask.ref.getDownloadURL();
-
     Clipboard.setData(ClipboardData(text: downloadUrl));
     await Share.share('Verileriniz burada: $downloadUrl');
 
@@ -90,14 +105,36 @@ Future<void> exportToFirebase(BuildContext context) async {
 
 //Exporta dosya olarak paylaşma fonksiyonu #dosyaa,paylaşş
 Future<void> exportAsFile(BuildContext context) async {
+  // Depolama iznini kontrol ediyoruz
+  var status = await Permission.storage.status;
+  if (!status.isGranted) {
+    if (Platform.isAndroid &&
+        await Permission.manageExternalStorage.request().isGranted) {
+      status = PermissionStatus.granted;
+    } else {
+      status = await Permission.storage.request();
+      if (status.isPermanentlyDenied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Depolama izni ayarlardan verilmelidir.')),
+        );
+        await openAppSettings();
+        return;
+      } else if (!status.isGranted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Depolama izni verilmedi.')),
+        );
+        return;
+      }
+    }
+  }
+
   try {
     List<TabItem> allTabs = await SQLiteDatasource().getTabs();
     Map<String, dynamic> allData = {};
 
     for (TabItem tab in allTabs) {
       List<Item> tabNotes = await SQLiteDatasource().getNotes(tab.id);
-
-      // Resimleri Base64'e çeviriyoruz
       for (var note in tabNotes) {
         if (note.imageUrls != null && note.imageUrls!.isNotEmpty) {
           List<String> base64Images = [];
@@ -108,10 +145,9 @@ Future<void> exportAsFile(BuildContext context) async {
               base64Images.add(base64Image);
             }
           }
-          note.imageUrls = base64Images; // Base64 olarak değiştiriyoruz
+          note.imageUrls = base64Images;
         }
       }
-
       allData[tab.name] = tabNotes.map((e) => e.toMap()).toList();
     }
 
@@ -227,6 +263,30 @@ Future<void> saveToDownloads(BuildContext context) async {
 
 //Export HTML dosyası olarak Firebase'e yükleme #htmll
 Future<void> exportAsHtml(BuildContext context) async {
+  // Depolama iznini kontrol ediyoruz
+  var status = await Permission.storage.status;
+  if (!status.isGranted) {
+    if (Platform.isAndroid &&
+        await Permission.manageExternalStorage.request().isGranted) {
+      status = PermissionStatus.granted;
+    } else {
+      status = await Permission.storage.request();
+      if (status.isPermanentlyDenied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Depolama izni ayarlardan verilmelidir.')),
+        );
+        await openAppSettings();
+        return;
+      } else if (!status.isGranted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Depolama izni verilmedi.')),
+        );
+        return;
+      }
+    }
+  }
+
   try {
     List<TabItem> allTabs = await SQLiteDatasource().getTabs();
     Map<String, dynamic> allData = {};
@@ -250,7 +310,6 @@ Future<void> exportAsHtml(BuildContext context) async {
 
     for (var tab in allTabs) {
       htmlContent += "<fieldset><legend>${tab.name}</legend>";
-
       List<dynamic> items = allData[tab.name];
       for (var itemMap in items) {
         Item item = Item.fromMap(itemMap);
@@ -258,12 +317,10 @@ Future<void> exportAsHtml(BuildContext context) async {
             "<table border='1' cellpadding='5' style='width: 100%;'>";
         htmlContent +=
             "<tr><th style='text-align: left; width: 30%;'>Başlık</th><td>${item.headerValue}</td></tr>";
-
         htmlContent +=
             "<tr><th style='text-align: left;'>Alt Başlık</th><td>${item.subtitle ?? 'Yok'}</td></tr>";
         htmlContent +=
             "<tr><th style='text-align: left;'>Items</th><td><ul>${item.expandedValue.map((val) => "<li>$val</li>").join('')}</ul></td></tr>";
-
         htmlContent += "</table><br/>";
       }
       htmlContent += "</fieldset><br/>";
@@ -274,16 +331,13 @@ Future<void> exportAsHtml(BuildContext context) async {
     String fileName = 'export_${const Uuid().v4()}.html';
     File file = File('${directory.path}/$fileName');
     await file.writeAsString(htmlContent);
+
     final FirebaseStorage storage = FirebaseStorage.instance;
-    // Firebase Storage'a yükle ve linki al
     TaskSnapshot uploadTask =
         await storage.ref('tablify/exports/html/$fileName').putFile(file);
     String downloadUrl = await uploadTask.ref.getDownloadURL();
 
-    // Linki doğrudan tarayıcıda aç
     await launch(downloadUrl);
-
-    // İşlem tamamlandığında kullanıcıya bildirim göster
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text('HTML linki kopyalandı ve tarayıcı açılıyor...'),
     ));
