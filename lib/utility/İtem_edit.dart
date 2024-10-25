@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:Tablify/data/database.dart';
-import 'package:uuid/uuid.dart';
 import '../model/items.dart';
 
 // Resimleri kalıcı olarak kaydetme fonksiyonu

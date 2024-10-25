@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:archive/archive_io.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
@@ -19,20 +20,32 @@ import '../model/items.dart';
 //Export Bulut link paylaş fonksiyonu #bulutt,paylaşş
 Future<void> exportToFirebase(BuildContext context) async {
   try {
-    // SQLite veritabanından tüm sekmeleri ve notları alıyoruz
     List<TabItem> allTabs = await SQLiteDatasource().getTabs();
     Map<String, dynamic> allData = {};
 
-    // Her sekmedeki notları topla
     for (TabItem tab in allTabs) {
       List<Item> tabNotes = await SQLiteDatasource().getNotes(tab.id);
+
+      for (var note in tabNotes) {
+        // Resimleri Base64'e çeviriyoruz
+        if (note.imageUrls != null && note.imageUrls!.isNotEmpty) {
+          List<String> base64Images = [];
+          for (String imageUrl in note.imageUrls!) {
+            File imageFile = File(imageUrl);
+            if (await imageFile.exists()) {
+              String base64Image = base64Encode(imageFile.readAsBytesSync());
+              base64Images.add(base64Image);
+            }
+          }
+          note.imageUrls = base64Images; // Base64 olarak değiştiriyoruz
+        }
+      }
+
       allData[tab.name] = tabNotes.map((e) => e.toMap()).toList();
     }
 
-    // JSON formatına çevir
     String jsonData = jsonEncode(allData);
 
-    // Geçici dizine JSON dosyasını kaydet
     final tempDir = await getTemporaryDirectory();
     String jsonFilePath = '${tempDir.path}/data.json';
     File jsonFile = File(jsonFilePath);
@@ -40,70 +53,20 @@ Future<void> exportToFirebase(BuildContext context) async {
 
     // Zip dosyasını oluştur
     final zipEncoder = ZipFileEncoder();
-    String zipFilePath = '${tempDir.path}/export_data.zip';
-    zipEncoder.create(zipFilePath);
 
-    // JSON dosyasını zip'e ekle
-    zipEncoder.addFile(jsonFile);
-
-    // Resimler için "images" klasörünü zip dosyası içinde oluşturun
-    Directory imagesDir = Directory('${tempDir.path}/images');
-    if (!imagesDir.existsSync()) {
-      imagesDir.createSync(recursive: true);
-    }
-
-    for (var tab in allTabs) {
-      List<Item> tabNotes = await SQLiteDatasource().getNotes(tab.id);
-      for (var item in tabNotes) {
-        if (item.imageUrls != null && item.imageUrls!.isNotEmpty) {
-          for (String imageUrl in item.imageUrls!) {
-            if (imageUrl.isNotEmpty) {
-              try {
-                Uri uri = Uri.parse(imageUrl);
-                if (uri.scheme == 'http' || uri.scheme == 'https') {
-                  // Eğer URL internetten ise görseli indir
-                  final response =
-                      await HttpClient().getUrl(Uri.parse(imageUrl));
-                  final fileBytes = await response.close();
-                  String fileName = imageUrl.split('/').last;
-                  File imageFile = File('${imagesDir.path}/$fileName');
-                  await fileBytes.pipe(imageFile.openWrite());
-
-                  // Görseli "images" klasörü içinde zip dosyasına ekleyin
-                  zipEncoder.addFile(imageFile, 'images/$fileName');
-                } else {
-                  // Yerel dosya yolunu kontrol et ve zip'e ekle
-                  File localImageFile = File(imageUrl);
-                  if (await localImageFile.exists()) {
-                    String fileName = localImageFile.path.split('/').last;
-                    File imageFile = File('${imagesDir.path}/$fileName');
-                    localImageFile.copySync(imageFile.path);
-
-                    // Görseli "images" klasörü içinde zip dosyasına ekleyin
-                    zipEncoder.addFile(imageFile, 'images/$fileName');
-                  } else {
-                    print('Yerel dosya bulunamadı: $imageUrl');
-                  }
-                }
-              } catch (e) {
-                print('Resim indirilemedi veya eklenemedi: $e');
-              }
-            } else {
-              // Eğer URL boşsa, "resim yok" mesajı ekleyebilirsiniz
-              print('Boş resim URL\'si bulundu.');
-            }
-          }
-        }
-      }
-    }
-
-    zipEncoder.close();
-
+    // Zaman damgasını dosya ismine ekliyoruz
     String formattedDate =
         DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
+    String zipFilePath = '${tempDir.path}/export_data_$formattedDate.zip';
+
+    zipEncoder.create(zipFilePath);
+    zipEncoder.addFile(jsonFile);
+    zipEncoder.close();
 
     FirebaseStorage storage = FirebaseStorage.instance;
     File zipFile = File(zipFilePath);
+
+    // Zaman damgası ile yeni bir dosya adı oluşturuluyor
     TaskSnapshot uploadTask = await storage
         .ref('tablify/exports/Tablify_dataExport_$formattedDate.zip')
         .putFile(zipFile);
@@ -118,7 +81,6 @@ Future<void> exportToFirebase(BuildContext context) async {
           'Veriler başarıyla yüklendi ve paylaşılabilir link oluşturuldu.'),
     ));
   } catch (e) {
-    // Hata mesajı
     print('Hata: $e');
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text('Veri yüklenirken bir hata oluştu.'),
@@ -134,6 +96,22 @@ Future<void> exportAsFile(BuildContext context) async {
 
     for (TabItem tab in allTabs) {
       List<Item> tabNotes = await SQLiteDatasource().getNotes(tab.id);
+
+      // Resimleri Base64'e çeviriyoruz
+      for (var note in tabNotes) {
+        if (note.imageUrls != null && note.imageUrls!.isNotEmpty) {
+          List<String> base64Images = [];
+          for (String imageUrl in note.imageUrls!) {
+            File imageFile = File(imageUrl);
+            if (await imageFile.exists()) {
+              String base64Image = base64Encode(imageFile.readAsBytesSync());
+              base64Images.add(base64Image);
+            }
+          }
+          note.imageUrls = base64Images; // Base64 olarak değiştiriyoruz
+        }
+      }
+
       allData[tab.name] = tabNotes.map((e) => e.toMap()).toList();
     }
 
@@ -165,39 +143,84 @@ Future<void> exportAsFile(BuildContext context) async {
 }
 
 //Export Dosyayı cihazın indirilenler klasörüne kaydetme #dosyalarımakaydett
+// import 'package:permission_handler/permission_handler.dart';
+
 Future<void> saveToDownloads(BuildContext context) async {
   try {
-    List<TabItem> allTabs = await SQLiteDatasource().getTabs();
-    Map<String, dynamic> allData = {};
+    // Handle storage permissions
+    var status = await Permission.storage.status;
+    print("Initial storage permission status: $status");
 
-    for (TabItem tab in allTabs) {
-      List<Item> tabNotes = await SQLiteDatasource().getNotes(tab.id);
-      allData[tab.name] = tabNotes
-          .map((e) => e.toMap())
-          .toList(); // Her sekmenin notlarını ekliyoruz
+    if (!status.isGranted) {
+      // Request MANAGE_EXTERNAL_STORAGE for Android 11+
+      if (Platform.isAndroid &&
+          await Permission.manageExternalStorage.request().isGranted) {
+        status = PermissionStatus.granted;
+      } else {
+        status = await Permission.storage.request();
+        print("After permission request: $status");
+      }
     }
 
-    String jsonData = jsonEncode(allData);
-    List<int> binaryData = utf8.encode(jsonData);
-    List<int>? compressedData = GZipEncoder().encode(binaryData);
+    if (status.isGranted) {
+      // Process file saving operations
+      List<TabItem> allTabs = await SQLiteDatasource().getTabs();
+      Map<String, dynamic> allData = {};
 
-    final directory = Directory('/storage/emulated/0/Download');
-    String formattedDate =
-        DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
-    final file =
-        File('${directory.path}/Tablify_dataExport_$formattedDate.bin');
-    await file.writeAsBytes(compressedData!);
+      for (TabItem tab in allTabs) {
+        List<Item> tabNotes = await SQLiteDatasource().getNotes(tab.id);
 
-    // Başarı mesajı göster
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Dosya başarıyla indirilenler klasörüne kaydedildi.'),
-    ));
-    Navigator.of(context).pop();
+        for (var note in tabNotes) {
+          if (note.imageUrls != null && note.imageUrls!.isNotEmpty) {
+            List<String> base64Images = [];
+            for (String imageUrl in note.imageUrls!) {
+              File imageFile = File(imageUrl);
+              if (await imageFile.exists()) {
+                String base64Image = base64Encode(imageFile.readAsBytesSync());
+                base64Images.add(base64Image);
+              }
+            }
+            note.imageUrls = base64Images;
+          }
+        }
+
+        allData[tab.name] = tabNotes.map((e) => e.toMap()).toList();
+      }
+
+      String jsonData = jsonEncode(allData);
+      List<int> binaryData = utf8.encode(jsonData);
+      List<int>? compressedData = GZipEncoder().encode(binaryData);
+
+      // Save to Downloads folder
+      String formattedDate =
+          DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
+      String filePath =
+          '/storage/emulated/0/Download/Tablify_dataExport_$formattedDate.bin';
+      final file = File(filePath);
+      await file.writeAsBytes(compressedData!);
+
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Dosya indirilenler klasörüne basarıyla kaydedildi.'),
+      ));
+      Navigator.of(context).pop();
+    } else if (status.isPermanentlyDenied) {
+      print("Permission permanently denied");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Depolama izni kalıcı olarak reddedildi. Lütfen ayarlardan etkinleştirin.')),
+      );
+      await openAppSettings();
+    } else {
+      print("Permission denied");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Depolama izni reddedildi.')),
+      );
+    }
   } catch (e) {
-    // Hata mesajı göster
-    print('Dosya kaydedilirken hata oluştu: $e');
+    print('Error saving file: $e');
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Dosya kaydedilirken bir hata oluştu.'),
+      content: Text('Dosya indirilirken bir hata oluştu.'),
     ));
   }
 }
@@ -225,7 +248,7 @@ Future<void> exportAsHtml(BuildContext context) async {
   <h1>Export Edilen Veriler</h1>
 """;
 
-    allTabs.forEach((tab) {
+    for (var tab in allTabs) {
       htmlContent += "<fieldset><legend>${tab.name}</legend>";
 
       List<dynamic> items = allData[tab.name];
@@ -244,29 +267,29 @@ Future<void> exportAsHtml(BuildContext context) async {
         htmlContent += "</table><br/>";
       }
       htmlContent += "</fieldset><br/>";
-    });
+    }
     htmlContent += "</body></html>";
 
     final directory = await getApplicationDocumentsDirectory();
-    String fileName = 'export_${Uuid().v4()}.html';
+    String fileName = 'export_${const Uuid().v4()}.html';
     File file = File('${directory.path}/$fileName');
     await file.writeAsString(htmlContent);
-    final FirebaseStorage _storage = FirebaseStorage.instance;
+    final FirebaseStorage storage = FirebaseStorage.instance;
     // Firebase Storage'a yükle ve linki al
     TaskSnapshot uploadTask =
-        await _storage.ref('tablify/exports/html/$fileName').putFile(file);
+        await storage.ref('tablify/exports/html/$fileName').putFile(file);
     String downloadUrl = await uploadTask.ref.getDownloadURL();
 
     // Linki doğrudan tarayıcıda aç
     await launch(downloadUrl);
 
     // İşlem tamamlandığında kullanıcıya bildirim göster
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text('HTML linki kopyalandı ve tarayıcı açılıyor...'),
     ));
   } catch (e) {
     print('Hata: $e');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text('HTML export sırasında bir hata oluştu.'),
     ));
   }

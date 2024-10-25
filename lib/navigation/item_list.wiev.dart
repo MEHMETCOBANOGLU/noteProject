@@ -353,6 +353,7 @@ class _ListItemState extends State<ListItem> {
                               File(imageUrl).existsSync()
                           ? GestureDetector(
                               onTap: () {
+                                print('Show image: $imageUrl');
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
