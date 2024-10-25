@@ -10,8 +10,6 @@ import 'package:yaml/yaml.dart';
 import '../data/database.dart';
 import 'dart:io';
 
-import '../utility/İtem_edit.dart';
-
 class EditItemPage extends StatefulWidget {
   final Item item;
 
@@ -177,7 +175,10 @@ class _EditItemPageState extends State<EditItemPage> {
       _showInvalidClipboardSnackbar();
       return;
     }
+
     String yamlText = data.text!;
+    bool hasMissingImages = false; // Eksik resim uyarısı için flag
+
     try {
       var yamlMap = loadYaml(yamlText);
       print("YAML başarıyla yüklendi: $yamlMap");
@@ -192,7 +193,29 @@ class _EditItemPageState extends State<EditItemPage> {
 
       for (var item in items) {
         texts.add(item['text'] ?? '');
-        imagePaths.add(item['image'] ?? '');
+
+        // Resim kontrolü
+        if (item['image'] != null && item['image'].isNotEmpty) {
+          File imageFile = File(item['image']);
+          if (await imageFile.exists()) {
+            imagePaths.add(item['image']);
+          } else {
+            imagePaths.add(null); // Resim bulunamazsa null olarak ekle
+            if (!hasMissingImages) {
+              hasMissingImages = true; // Uyarı göstermek için flag ayarla
+            }
+          }
+        } else {
+          imagePaths.add(null);
+        }
+      }
+
+      // Eğer eksik resimler varsa uyarıyı bir kez göster
+      if (hasMissingImages) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Bazı resimler bulunamadı'),
+          backgroundColor: Colors.red,
+        ));
       }
 
       await _showYamlPreviewDialog(
@@ -212,9 +235,10 @@ class _EditItemPageState extends State<EditItemPage> {
 
             for (int i = 0; i < texts.length; i++) {
               _itemControllers.add(TextEditingController(text: texts[i]));
-              _existingImagePaths.add(imagePaths[i]);
+              _existingImagePaths.add(
+                  imagePaths[i] ?? ''); // Eğer null ise boş string atıyoruz
               _selectedImages.add(
-                imagePaths[i]!.isNotEmpty ? File(imagePaths[i]!) : null,
+                imagePaths[i] != null ? File(imagePaths[i]!) : null,
               );
               _menuKeys.add(GlobalKey());
               _focusNodes.add(FocusNode());
@@ -279,10 +303,10 @@ class _EditItemPageState extends State<EditItemPage> {
                   },
                 ),
                 ElevatedButton(
+                  onPressed: onActionPressed,
                   child: Text(actionLabel,
                       style: const TextStyle(
                           color: Colors.green, fontWeight: FontWeight.bold)),
-                  onPressed: onActionPressed,
                 ),
               ],
             ),
@@ -539,6 +563,7 @@ class _EditItemPageState extends State<EditItemPage> {
   Future<void> _cloneTable() async {
     var uuid = const Uuid().v4();
     String clonedTitle = await _getClonedTitle(_titleController.text);
+    print(_existingImagePaths);
 
     //klonlanan tablo için yeni ıtem oluşturma işlemi
     Item clonedItem = Item(

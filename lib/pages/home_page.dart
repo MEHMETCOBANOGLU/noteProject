@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:Tablify/data/database.dart';
 import 'package:Tablify/model/items.dart';
 import 'package:Tablify/pages/add_item_page.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:reorderables/reorderables.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -59,7 +60,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   bool _isLoading = true;
   bool _isLoadingData = false;
   bool _isSearching = false;
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   List<ScrollController> _scrollControllers = [];
 
@@ -321,115 +322,141 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Flexible(
-                child: Text(
-                  'Dışa Aktarma Seçenekleri',
-                  style: TextStyle(fontSize: 20),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              IconButton(
-                padding: EdgeInsets.zero,
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                icon: const Icon(
-                  Icons.close,
-                  color: Colors.red,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton(
-                onPressed: () async {
-                  await exportToFirebase(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.zero,
-                  ),
-                ),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Bulut Link Paylaş',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Flexible(
+                    child: Text(
+                      'Dışa Aktarma Seçenekleri',
+                      style: TextStyle(fontSize: 20),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  await exportAsFile(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.zero,
-                  ),
-                ),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Dosya Olarak Paylaş',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.red,
                     ),
                   ),
-                ),
+                ],
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  await saveToDownloads(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.zero,
-                  ),
-                ),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Dosyalarıma Kaydet',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton(
+                    onPressed: () async {
+                      setState(() {
+                        _isLoadingData = true; // Yüklenme göstergesini başlat
+                      });
+                      await exportToFirebase(context); // Veriyi dışa aktar
+                      setState(() {
+                        _isLoadingData = false; // Yüklenme göstergesini durdur
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      ),
+                    ),
+                    child: const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Bulut Link Paylaş',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  await exportAsHtml(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.zero,
-                  ),
-                ),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'HTML Olarak Görüntüle',
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
+                  ElevatedButton(
+                    onPressed: () async {
+                      await exportAsFile(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      ),
+                    ),
+                    child: const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Dosya Olarak Paylaş',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await saveToDownloads(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      ),
+                    ),
+                    child: const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Dosyalarıma Kaydet',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await exportAsHtml(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      ),
+                    ),
+                    child: const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'HTML Olarak Görüntüle',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+              actions: [
+                if (_isLoadingData)
+                  const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(color: Colors.green),
+                        SizedBox(height: 10),
+                        Text(
+                          "Veriler dışa aktarılıyor, lütfen bekleyin...",
+                          style: TextStyle(color: Colors.green),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
         );
       },
     );
@@ -437,7 +464,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   //İmport penceeresi #importt
   Future<void> _showImportPopup(BuildContext context) async {
-    final TextEditingController _cloudLinkController = TextEditingController();
+    final TextEditingController cloudLinkController = TextEditingController();
 
     ClipboardData? clipboardData = await Clipboard.getData('text/plain');
     if (clipboardData != null && clipboardData.text != null) {
@@ -447,7 +474,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         caseSensitive: false,
       );
       if (cloudLinkRegExp.hasMatch(clipboardText)) {
-        _cloudLinkController.text = clipboardText;
+        cloudLinkController.text = clipboardText;
       }
     }
 
@@ -485,11 +512,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 children: [
                   // Bulut Linki Giriş Kısmı
                   TextField(
-                    controller: _cloudLinkController,
+                    controller: cloudLinkController,
                     decoration: InputDecoration(
                       labelText: 'Bulut Linki',
                       suffixIcon: IconButton(
-                        icon: Icon(Icons.paste),
+                        icon: const Icon(Icons.paste),
                         onPressed: () async {
                           ClipboardData? data =
                               await Clipboard.getData('text/plain');
@@ -500,7 +527,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               caseSensitive: false,
                             );
                             if (cloudLinkRegExp.hasMatch(clipboardText)) {
-                              _cloudLinkController.text = clipboardText;
+                              cloudLinkController.text = clipboardText;
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -520,7 +547,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     alignment: Alignment.topRight,
                     child: ElevatedButton(
                       onPressed: () async {
-                        String cloudLink = _cloudLinkController.text;
+                        String cloudLink = cloudLinkController.text;
                         if (cloudLink.isNotEmpty) {
                           setState(() {
                             _isLoadingData =
@@ -596,21 +623,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 //İmport bulut link  fonksiyonu #bulutt
   Future<void> _importDataFromCloud(String cloudLink) async {
     try {
-      // Firebase'den ZIP dosyasını indir
       final tempDir = await getTemporaryDirectory();
       String zipFilePath = '${tempDir.path}/import_data.zip';
       File zipFile = File(zipFilePath);
 
-      // ZIP dosyasını bulut linkinden indiriyoruz
+      // Bulut linkinden zip dosyasını indir
       final response = await HttpClient().getUrl(Uri.parse(cloudLink));
       final fileBytes = await response.close();
       await fileBytes.pipe(zipFile.openWrite());
 
-      // ZIP dosyasını aç
+      // Zip dosyasını aç
       final bytes = zipFile.readAsBytesSync();
       final archive = ZipDecoder().decodeBytes(bytes);
 
-      // JSON ve resim dosyalarını çıkartıyoruz
       for (var file in archive) {
         final filename = file.name;
         if (file.isFile) {
@@ -619,22 +644,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           File outFile = File(filePath);
           await outFile.writeAsBytes(data);
 
-          // JSON dosyasını işleme
           if (filename == 'data.json') {
             String contents = await outFile.readAsString();
             Map<String, dynamic> jsonData = jsonDecode(contents);
 
-            // Veritabanındaki mevcut sekmeleri al
             List<TabItem> existingTabs = await _sqliteDatasource.getTabs();
             List<TabItem> newTabs = [];
 
             for (String tabName in jsonData.keys) {
-              // Mevcut sekme var mı kontrol et
               TabItem? existingTab = existingTabs.firstWhereOrNull(
                 (tab) => tab.name == tabName,
               );
 
-              // Eğer sekme zaten varsa, onu kullan, yoksa yeni sekme oluştur
               String tabId;
               if (existingTab != null) {
                 tabId = existingTab.id;
@@ -647,16 +668,34 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 newTabs.add(newTab);
               }
 
-              // İlgili sekmeye ait notları içeri aktar
               List<dynamic> notes = jsonData[tabName];
               for (var note in notes) {
                 Item newItem = Item.fromMap(note);
+
                 newItem.tabId = tabId;
+
+                if (newItem.imageUrls != null) {
+                  List<String> imagePaths = [];
+                  for (String base64Image in newItem.imageUrls!) {
+                    // Base64'ü çöz ve resmi yerel olarak sakla
+                    List<int> imageBytes = base64Decode(base64Image);
+                    String fileName = 'imported_image_${const Uuid().v4()}.jpg';
+                    File tempImage = File('${tempDir.path}/$fileName');
+                    await tempImage.writeAsBytes(imageBytes);
+
+                    // Resmi kalıcı olarak sakla ve yeni yolu al
+                    String savedImagePath =
+                        await _saveImagePermanently(tempImage);
+                    imagePaths.add(savedImagePath);
+                  }
+                  newItem.imageUrls = imagePaths;
+                }
+
                 await _sqliteDatasource.addOrUpdateNote(newItem);
               }
             }
 
-            // Tüm yeni sekmeleri ve verileri ekledikten sonra
+            // Yeni sekmeleri ve verileri ekledikten sonra UI'yi güncelle
             setState(() {
               _tabs.addAll(newTabs);
               _tabDataList.addAll(newTabs
@@ -685,79 +724,118 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
+  Future<void> requestStoragePermission() async {
+    if (await Permission.storage.request().isGranted) {
+      // Depolama izni verildi, devam edebilirsiniz
+    }
+  }
+
   //İmport dosya  fonksiyonu #dosyaseçç
   Future<void> _importFromFile() async {
+    // Depolama izni isteyin
+    await requestStoragePermission();
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['bin'],
       );
 
-      if (result != null) {
-        File file = File(result.files.single.path!);
-        List<int> binaryData = await file.readAsBytes();
-        List<int> decompressedData = GZipDecoder().decodeBytes(binaryData);
-        String contents = utf8.decode(decompressedData);
-        Map<String, dynamic> jsonData = jsonDecode(contents);
+      if (result == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Herhangi bir dosya seçilmedi.')),
+        );
+        return;
+      }
 
-        // SQLite'den mevcut sekmeleri al
-        List<TabItem> existingTabs = await _sqliteDatasource.getTabs();
-        List<TabItem> newTabs = [];
+      File file = File(result.files.single.path!);
+      List<int> binaryData = await file.readAsBytes();
+      List<int> decompressedData = GZipDecoder().decodeBytes(binaryData);
+      String contents = utf8.decode(decompressedData);
+      Map<String, dynamic> jsonData = jsonDecode(contents);
 
-        for (String tabName in jsonData.keys) {
-          // Mevcut sekme var mı kontrol et
-          TabItem? existingTab = existingTabs.firstWhereOrNull(
-            (tab) => tab.name == tabName,
-          );
+      List<TabItem> existingTabs = await _sqliteDatasource.getTabs();
+      List<TabItem> newTabs = [];
 
-          // Eğer sekme zaten varsa, onu kullan, yoksa yeni sekme oluştur
-          String tabId;
-          if (existingTab != null) {
-            tabId = existingTab.id;
-          } else {
-            tabId = const Uuid().v4();
-            int newOrder = _tabs.length + newTabs.length;
-            TabItem newTab = TabItem(id: tabId, name: tabName, order: newOrder);
-            await _sqliteDatasource.addTab(newTab);
-            newTabs.add(newTab);
-          }
+      for (String tabName in jsonData.keys) {
+        TabItem? existingTab = existingTabs.firstWhereOrNull(
+          (tab) => tab.name == tabName,
+        );
 
-          // İlgili sekmeye ait notları içeri aktar
-          List<dynamic> notes = jsonData[tabName];
-          for (var note in notes) {
-            Item newItem = Item.fromMap(note);
-            newItem.tabId = tabId; // Notu ait olduğu sekmeye bağla
-            await _sqliteDatasource.addOrUpdateNote(newItem);
-          }
+        String tabId;
+        if (existingTab != null) {
+          tabId = existingTab.id;
+        } else {
+          tabId = const Uuid().v4();
+          int newOrder = _tabs.length + newTabs.length;
+          TabItem newTab = TabItem(id: tabId, name: tabName, order: newOrder);
+          await _sqliteDatasource.addTab(newTab);
+          newTabs.add(newTab);
         }
 
-        // Tüm yeni sekmeleri ve verileri ekledikten sonra
-        setState(() {
-          _tabs.addAll(newTabs);
-          _tabDataList.addAll(newTabs
-              .map((tab) =>
-                  TabData(data: [], localExpandedStates: {}, allExpanded: true))
-              .toList());
-          _scrollControllers
-              .addAll(newTabs.map((tab) => ScrollController()).toList());
+        List<dynamic> notes = jsonData[tabName];
+        for (var noteMap in notes) {
+          Item newItem = Item.fromMap(noteMap);
+          newItem.tabId = tabId;
 
-          // TabController'ı güncelle
-          _updateTabController();
-          _loadTabs();
-        });
+          // Resimleri çöz ve yerel olarak sakla
+          if (newItem.imageUrls != null) {
+            List<String> imagePaths = [];
+            for (String base64Image in newItem.imageUrls!) {
+              List<int> imageBytes = base64Decode(base64Image);
+              String fileName = 'imported_image_${const Uuid().v4()}.jpg';
+              File tempImage = File('${file.parent.path}/$fileName');
+              await tempImage.writeAsBytes(imageBytes);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
-        );
+              // Resmi kalıcı olarak sakla ve yeni yolu al
+              String savedImagePath = await _saveImagePermanently(tempImage);
+              imagePaths.add(savedImagePath);
+            }
+            newItem.imageUrls = imagePaths;
+          }
+
+          await _sqliteDatasource.addOrUpdateNote(newItem);
+        }
       }
+
+      // setState(() {
+      //   _tabs.addAll(newTabs);
+      //   _loadTabs();
+      // });
+      // Tüm yeni sekmeleri ve verileri ekledikten sonra
+      setState(() {
+        _tabs.addAll(newTabs);
+        _tabDataList.addAll(newTabs
+            .map((tab) =>
+                TabData(data: [], localExpandedStates: {}, allExpanded: true))
+            .toList());
+        _scrollControllers
+            .addAll(newTabs.map((tab) => ScrollController()).toList());
+
+        // TabController'ı güncelle
+        _updateTabController();
+        _loadTabs();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veriler başarıyla içe aktarıldı.')),
+      );
     } catch (e) {
-      // Hata mesajı göster
       print('Veri içe aktarılırken hata oluştu: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Veriler içe aktarılırken bir hata oluştu.')),
       );
     }
+  }
+
+  // Resmi kalıcı olarak saklayan fonksiyon
+  Future<String> _saveImagePermanently(File image) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final fileName = image.path.split('/').last;
+    final newPath = '${directory.path}/$fileName';
+
+    final savedImage = await image.copy(newPath);
+    return savedImage.path;
   }
 
   // overwrite dialogu #overwritedialogg,aynbaşlıkmevcutt

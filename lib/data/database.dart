@@ -407,6 +407,7 @@ class SQLiteDatasource {
   }
 
   //yeni tablo ekleme fonksiyonu
+  // Not ekleme veya güncelleme sırasında
   Future<bool> addOrUpdateNote(Item item) async {
     try {
       // Aynı id'ye sahip notu kontrol et

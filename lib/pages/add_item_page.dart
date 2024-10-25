@@ -239,6 +239,8 @@ class _AddItemPageState extends State<AddItemPage> {
 
     String yamlText = data.text!;
 
+    bool hasMissingImages = false; // Resim bulunamadı uyarısı için flag
+
     try {
       var yamlMap = loadYaml(yamlText);
       print("YAML başarıyla yüklendi: $yamlMap");
@@ -252,15 +254,39 @@ class _AddItemPageState extends State<AddItemPage> {
       for (int i = 0; i < items.length; i++) {
         var item = items[i];
         if (item['image'] != null) {
-          if (isBase64(item['image'])) {
-            String filePath = await _convertBase64ToImage(item['image'], i);
-            imagePaths.add(filePath);
-          } else {
-            imagePaths.add(item['image']);
+          try {
+            if (isBase64(item['image'])) {
+              String filePath = await _convertBase64ToImage(item['image'], i);
+              imagePaths.add(filePath);
+            } else {
+              File imageFile = File(item['image']);
+              if (await imageFile.exists()) {
+                imagePaths.add(item['image']);
+              } else {
+                imagePaths.add(null);
+                if (!hasMissingImages) {
+                  hasMissingImages =
+                      true; // Resim bulunamadı uyarısını bir kez göstermek için flag'i işaretle
+                }
+              }
+            }
+          } catch (e) {
+            imagePaths
+                .add(null); // Eğer resim bulunamazsa null ekleyip devam et
+            if (!hasMissingImages) {
+              hasMissingImages = true; // Uyarıyı bir kez göstermek için flag
+            }
           }
         } else {
           imagePaths.add(null);
         }
+      }
+
+      if (hasMissingImages) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Resimler bulunamadı'),
+          backgroundColor: Colors.red,
+        ));
       }
 
       await _showYamlPreviewDialog(
@@ -278,7 +304,8 @@ class _AddItemPageState extends State<AddItemPage> {
             for (int i = 0; i < items.length; i++) {
               var item = items[i];
               _itemControllers.add(TextEditingController(text: item['text']));
-              _imagePaths.add(imagePaths[i]);
+              _imagePaths
+                  .add(imagePaths[i]); // Resim yolları (bulunanlar) ekleniyor
               _menuKeys.add(GlobalKey());
             }
           });
@@ -340,10 +367,10 @@ class _AddItemPageState extends State<AddItemPage> {
                   },
                 ),
                 ElevatedButton(
+                  onPressed: onActionPressed,
                   child: Text(actionLabel,
                       style: TextStyle(
                           color: Colors.green, fontWeight: FontWeight.bold)),
-                  onPressed: onActionPressed,
                 ),
               ],
             ),
