@@ -1,5 +1,4 @@
 import 'package:Tablify/model/TabItem.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -12,7 +11,6 @@ import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
-import 'package:http/http.dart' as http;
 
 import '../data/database.dart';
 import '../model/items.dart';

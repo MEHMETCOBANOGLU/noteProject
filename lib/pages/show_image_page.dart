@@ -34,17 +34,17 @@ class _ShowImageState extends State<ShowImage> {
     _preloadImages(); // Resimleri önceden yükle
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
   // Resimleri belleğe yükler
   void _preloadImages() {
     for (var imagePath in widget.imagePaths) {
       loadedImages.add(Image.file(File(imagePath)));
     }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _copyText(String text) async {

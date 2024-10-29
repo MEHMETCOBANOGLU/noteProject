@@ -369,7 +369,7 @@ class _AddItemPageState extends State<AddItemPage> {
                 ElevatedButton(
                   onPressed: onActionPressed,
                   child: Text(actionLabel,
-                      style: TextStyle(
+                      style: const TextStyle(
                           color: Colors.green, fontWeight: FontWeight.bold)),
                 ),
               ],

@@ -9,8 +9,6 @@ import 'package:Tablify/pages/show_image_page.dart';
 import 'package:image_picker/image_picker.dart';
 import '../pages/edit_item_page.dart';
 
-import '../utility/image_copy.dart';
-
 class ListItem extends StatefulWidget {
   final Item item;
   final bool isGlobalExpanded;
@@ -329,12 +327,12 @@ class _ListItemState extends State<ListItem> {
                 },
 
                 //swap ile itemresim ve metin koplama işlemi #swapp,copyy
-                onHorizontalDragStart: (DragStartDetails details) {
-                  if (imageUrl != null && imageUrl.isNotEmpty) {
-                    copyImageToClipboard(context, imageUrl);
-                  }
-                  _copyText(text);
-                },
+                // onHorizontalDragStart: (DragStartDetails details) {
+                //   if (imageUrl != null && imageUrl.isNotEmpty) {
+                //     copyImageToClipboard(context, imageUrl);
+                //   }
+                //   _copyText(text);
+                // },
                 child: Column(
                   children: [
                     ListTile(
