@@ -1,0 +1,13 @@
+-ignorewarnings
+-keep,includedescriptorclasses public class com.google.android.gms.tasks.Task { *; }
+-keep,includedescriptorclasses public class com.google.android.gms.tasks.TaskCompletionSource { *; }
+-keep,includedescriptorclasses public class com.google.firebase.FirebaseApp { *; }
+-keep,includedescriptorclasses public class com.google.firebase.appcheck.AppCheckProvider { *; }
+-keep,includedescriptorclasses public class com.google.firebase.appcheck.AppCheckProviderFactory { *; }
+-keep,includedescriptorclasses public class com.google.firebase.appcheck.AppCheckToken { *; }
+-keep,includedescriptorclasses public class com.google.firebase.appcheck.FirebaseAppCheck { *; }
+-keep,includedescriptorclasses public class com.google.firebase.appcheck.FirebaseAppCheck$AppCheckListener { *; }
+-keep,includedescriptorclasses public class com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory { *; }
+-keep,includedescriptorclasses public class com.google.firebase.appcheck.internal.DefaultFirebaseAppCheck { *; }
+-keep,includedescriptorclasses public class com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory { *; }
+-keep,includedescriptorclasses public class com.google.firebase.example.LoggingUtils { * ; }

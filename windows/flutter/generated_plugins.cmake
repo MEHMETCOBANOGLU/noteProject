@@ -8,7 +8,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   firebase_storage
   pasteboard
   permission_handler_windows
-  rive_common
   share_plus
   url_launcher_windows
 )

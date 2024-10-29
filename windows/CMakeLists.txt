@@ -4,7 +4,6 @@ cmake_minimum_required(VERSION 3.14...3.25)
 
 project(proje1 LANGUAGES CXX)
 
-
 # Visual Studio 2022 araç setini kullanacak şekilde yapılandırma
 set(CMAKE_GENERATOR_TOOLSET "v143") # Mevcut Visual Studio sürümünüze göre güncel araç setini belirtiyor
 
@@ -58,11 +57,23 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
-
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# === BURAYA EKLİYORUZ ===
+# Firebase C++ SDK yolunu ayarlayın
+
+# set(FIREBASE_CPP_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/firebase_cpp_sdk")
+
+# if(NOT EXISTS "${FIREBASE_CPP_SDK_DIR}/CMakeLists.txt")
+#   message(FATAL_ERROR "Could not find Firebase C++ SDK at ${FIREBASE_CPP_SDK_DIR}")
+# endif()
+
+# add_subdirectory(${FIREBASE_CPP_SDK_DIR} firebase_cpp_sdk EXCLUDE_FROM_ALL)
+
+# Firebase kütüphanelerini bağlayacağız, ancak bu işlem runner/CMakeLists.txt dosyasında yapılacak.
+# Yani bu dosyada target_link_libraries komutuna gerek yok.
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can

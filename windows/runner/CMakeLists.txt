@@ -1,7 +1,6 @@
 # cmake_minimum_required(VERSION 3.14)
 cmake_minimum_required(VERSION 3.14...3.25)
 
-
 project(runner LANGUAGES CXX)
 
 # Define the application target. To change its name, change BINARY_NAME in the
@@ -38,6 +37,16 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
+
+# === Firebase Kütüphanelerini Bağlama ===
+# Firebase kütüphanelerini uygulamanıza bağlamak için aşağıdaki satırları ekleyin.
+# Kullanmak istediğiniz Firebase modüllerini ekleyebilirsiniz.
+
+# Temel Firebase uygulama kütüphanesini ekleyin
+# target_link_libraries(${BINARY_NAME} PRIVATE firebase_app)
+
+# Eğer ek Firebase modülleri kullanıyorsanız, aşağıdaki satırları yorumdan çıkarın ve gerekli modülleri ekleyin:
+# target_link_libraries(${BINARY_NAME} PRIVATE firebase_auth firebase_firestore firebase_storage)
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
