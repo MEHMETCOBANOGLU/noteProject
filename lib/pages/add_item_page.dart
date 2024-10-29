@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 import '../model/items.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'package:path/path.dart' as path;
 
 class AddItemPage extends StatefulWidget {
   final String tabId;
@@ -427,11 +428,11 @@ class _AddItemPageState extends State<AddItemPage> {
     }
   }
 
-  // Resmi kalıcı olarak saklayan fonksiyon
+// Resimleri kalıcı olarak kaydetme fonksiyonu1
   Future<String> _saveImagePermanently(File image) async {
     final directory = await getApplicationDocumentsDirectory();
-    final fileName = image.path.split('/').last;
-    final newPath = '${directory.path}/$fileName';
+    final fileName = path.basename(image.path);
+    final newPath = path.join(directory.path, fileName);
 
     final savedImage = await image.copy(newPath);
     return savedImage.path;

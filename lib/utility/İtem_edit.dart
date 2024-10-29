@@ -6,12 +6,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:Tablify/data/database.dart';
 import '../model/items.dart';
+import 'package:path/path.dart' as path;
 
-// Resimleri kalıcı olarak kaydetme fonksiyonu
+// Resimleri kalıcı olarak kaydetme fonksiyonu1
 Future<String> saveImagePermanently(File image) async {
   final directory = await getApplicationDocumentsDirectory();
-  final fileName = image.path.split('/').last;
-  final newPath = '${directory.path}/$fileName';
+  final fileName = path.basename(image.path);
+  final newPath = path.join(directory.path, fileName);
 
   final savedImage = await image.copy(newPath);
   return savedImage.path;

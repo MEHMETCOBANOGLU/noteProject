@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 import 'package:yaml/yaml.dart';
 import '../data/database.dart';
+import 'package:path/path.dart' as path;
 import 'dart:io';
 
 class EditItemPage extends StatefulWidget {
@@ -316,11 +317,11 @@ class _EditItemPageState extends State<EditItemPage> {
     );
   }
 
-// Resimleri kalıcı olarak kaydetme fonksiyonu
+  // Resimleri kalıcı olarak kaydetme fonksiyonu1
   Future<String> _saveImagePermanently(File image) async {
     final directory = await getApplicationDocumentsDirectory();
-    final fileName = image.path.split('/').last;
-    final newPath = '${directory.path}/$fileName';
+    final fileName = path.basename(image.path);
+    final newPath = path.join(directory.path, fileName);
 
     final savedImage = await image.copy(newPath);
     return savedImage.path;

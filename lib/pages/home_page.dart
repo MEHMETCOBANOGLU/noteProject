@@ -23,7 +23,7 @@ import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:archive/archive_io.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-
+import 'package:path/path.dart' as path;
 import '../utility/export_operations.dart';
 
 class HomePage extends StatefulWidget {
@@ -865,11 +865,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  // Resmi kalıcı olarak saklayan fonksiyon
+  // Resmi kalıcı olarak saklayan fonksiyon1
   Future<String> _saveImagePermanently(File image) async {
     final directory = await getApplicationDocumentsDirectory();
-    final fileName = image.path.split('/').last;
-    final newPath = '${directory.path}/$fileName';
+    final fileName = path.basename(image.path);
+    final newPath = path.join(directory.path, fileName);
 
     final savedImage = await image.copy(newPath);
     return savedImage.path;

@@ -1,0 +1,14 @@
+-ignorewarnings
+-keep,includedescriptorclasses public class com.google.firebase.example.LoggingUtils { * ; }
+-keep,includedescriptorclasses public class com.google.firebase.remoteconfig.ConfigUpdate { *; }
+-keep,includedescriptorclasses public class com.google.firebase.remoteconfig.ConfigUpdateListener { *; }
+-keep,includedescriptorclasses public class com.google.firebase.remoteconfig.ConfigUpdateListenerRegistration { *; }
+-keep,includedescriptorclasses public class com.google.firebase.remoteconfig.FirebaseRemoteConfig { *; }
+-keep,includedescriptorclasses public class com.google.firebase.remoteconfig.FirebaseRemoteConfigException { *; }
+-keep,includedescriptorclasses public class com.google.firebase.remoteconfig.FirebaseRemoteConfigException$Code { *; }
+-keep,includedescriptorclasses public class com.google.firebase.remoteconfig.FirebaseRemoteConfigFetchThrottledException { *; }
+-keep,includedescriptorclasses public class com.google.firebase.remoteconfig.FirebaseRemoteConfigInfo { *; }
+-keep,includedescriptorclasses public class com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings { *; }
+-keep,includedescriptorclasses public class com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings$Builder { *; }
+-keep,includedescriptorclasses public class com.google.firebase.remoteconfig.FirebaseRemoteConfigValue { *; }
+-keep,includedescriptorclasses public class com.google.firebase.remoteconfig.internal.cpp.JniConfigUpdateListener { *; }
