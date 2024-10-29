@@ -7,12 +7,24 @@ import 'package:Tablify/const/colors.dart';
 import 'package:Tablify/data/database.dart';
 import 'package:Tablify/pages/home_page.dart';
 
+// Firebase yapılandırma dosyasını içe aktarın
+import 'firebase_options.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+
+  // Firebase'i başlatırken options parametresini ekleyin
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   // SQLite Veritabanını Başlatıyoruz
   final SQLiteDatasource db = SQLiteDatasource();
-  await db.init(); // Veritabanını başlatıyoruz
+  try {
+    await db.init(); // Veritabanını başlatıyoruz
+  } catch (e) {
+    print("Veritabanı başlatma hatası: $e");
+  }
 
   runApp(
     DevicePreview(
@@ -28,6 +40,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
+      useInheritedMediaQuery: true, // DevicePreview ile uyumluluk için
+      locale: DevicePreview.locale(context), // Dil ayarları
+      builder: DevicePreview.appBuilder, // Ekran önizlemesi için
       theme: ThemeData(
         appBarTheme: const AppBarTheme(color: AppColors.backgroundColor),
         primaryColor: AppColors.backgroundColor,
@@ -62,8 +77,6 @@ class MyApp extends StatelessWidget {
         ),
       ),
       debugShowCheckedModeBanner: false,
-      locale: DevicePreview.locale(context),
-      builder: DevicePreview.appBuilder,
       home: const HomePage(),
     );
   }

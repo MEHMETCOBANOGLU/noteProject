@@ -60,7 +60,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   bool _isLoading = true;
   bool _isLoadingData = false;
   bool _isSearching = false;
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   List<ScrollController> _scrollControllers = [];
 
@@ -354,11 +354,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ElevatedButton(
                     onPressed: () async {
                       setState(() {
-                        _isLoadingData = true; // Yüklenme göstergesini başlat
+                        _isLoadingData = true;
                       });
-                      await exportToFirebase(context); // Veriyi dışa aktar
+                      await exportToFirebase(context);
                       setState(() {
-                        _isLoadingData = false; // Yüklenme göstergesini durdur
+                        _isLoadingData = false;
                       });
                     },
                     style: ElevatedButton.styleFrom(
@@ -379,7 +379,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                   ElevatedButton(
                     onPressed: () async {
+                      setState(() {
+                        _isLoadingData = true;
+                      });
                       await exportAsFile(context);
+                      setState(() {
+                        _isLoadingData = false;
+                      });
                     },
                     style: ElevatedButton.styleFrom(
                       shape: const RoundedRectangleBorder(
@@ -399,7 +405,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                   ElevatedButton(
                     onPressed: () async {
+                      setState(() {
+                        _isLoadingData = true;
+                      });
                       await saveToDownloads(context);
+                      setState(() {
+                        _isLoadingData = false;
+                      });
                     },
                     style: ElevatedButton.styleFrom(
                       shape: const RoundedRectangleBorder(
@@ -419,7 +431,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                   ElevatedButton(
                     onPressed: () async {
+                      setState(() {
+                        _isLoadingData = true;
+                      });
                       await exportAsHtml(context);
+                      setState(() {
+                        _isLoadingData = false;
+                      });
                     },
                     style: ElevatedButton.styleFrom(
                       shape: const RoundedRectangleBorder(
@@ -464,7 +482,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   //İmport penceeresi #importt
   Future<void> _showImportPopup(BuildContext context) async {
-    final TextEditingController _cloudLinkController = TextEditingController();
+    final TextEditingController cloudLinkController = TextEditingController();
 
     ClipboardData? clipboardData = await Clipboard.getData('text/plain');
     if (clipboardData != null && clipboardData.text != null) {
@@ -474,7 +492,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         caseSensitive: false,
       );
       if (cloudLinkRegExp.hasMatch(clipboardText)) {
-        _cloudLinkController.text = clipboardText;
+        cloudLinkController.text = clipboardText;
       }
     }
 
@@ -510,13 +528,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Bulut Linki Giriş Kısmı
                   TextField(
-                    controller: _cloudLinkController,
+                    controller: cloudLinkController,
                     decoration: InputDecoration(
                       labelText: 'Bulut Linki',
                       suffixIcon: IconButton(
-                        icon: Icon(Icons.paste),
+                        icon: const Icon(Icons.paste),
                         onPressed: () async {
                           ClipboardData? data =
                               await Clipboard.getData('text/plain');
@@ -527,7 +544,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               caseSensitive: false,
                             );
                             if (cloudLinkRegExp.hasMatch(clipboardText)) {
-                              _cloudLinkController.text = clipboardText;
+                              cloudLinkController.text = clipboardText;
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -542,22 +559,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  // Ekle Butonu
                   Align(
                     alignment: Alignment.topRight,
                     child: ElevatedButton(
                       onPressed: () async {
-                        String cloudLink = _cloudLinkController.text;
+                        String cloudLink = cloudLinkController.text;
                         if (cloudLink.isNotEmpty) {
                           setState(() {
-                            _isLoadingData =
-                                true; // Yüklenme göstergesi başlatılır
+                            _isLoadingData = true;
                           });
-                          await _importDataFromCloud(
-                              cloudLink); // Veri çekiliyor
+                          await _importDataFromCloud(cloudLink);
                           setState(() {
-                            _isLoadingData =
-                                false; // Yüklenme tamamlandığında kaldırılır
+                            _isLoadingData = false;
                           });
                           Navigator.of(context).pop();
                         }
@@ -572,10 +585,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  // Dosya Seç Butonu
                   ElevatedButton(
                     onPressed: () async {
+                      //add time  200ms
+
+                      setState(() {
+                        Future.delayed(const Duration(milliseconds: 8000));
+                        _isLoadingData = true;
+                      });
                       await _importFromFile();
+                      setState(() {
+                        _isLoadingData = false;
+                      });
                       Navigator.of(context).pop();
                     },
                     style: ElevatedButton.styleFrom(
@@ -596,19 +617,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                 ],
               ),
-              // Veriler yükleniyorsa, yüklenme simgesi göster
               actions: [
                 if (_isLoadingData)
                   const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircularProgressIndicator(
-                          color: Colors.green,
-                        ), // Yüklenme simgesi
+                        CircularProgressIndicator(color: Colors.green),
                         SizedBox(height: 10),
-                        Text("Veriler içe aktarılıyor, lütfen bekleyin...",
-                            style: TextStyle(color: Colors.green)),
+                        Text(
+                          "Veriler içe aktarılıyor, lütfen bekleyin...",
+                          style: TextStyle(color: Colors.green),
+                        ),
                       ],
                     ),
                   ),
@@ -679,7 +699,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   for (String base64Image in newItem.imageUrls!) {
                     // Base64'ü çöz ve resmi yerel olarak sakla
                     List<int> imageBytes = base64Decode(base64Image);
-                    String fileName = 'imported_image_${Uuid().v4()}.jpg';
+                    String fileName = 'imported_image_${const Uuid().v4()}.jpg';
                     File tempImage = File('${tempDir.path}/$fileName');
                     await tempImage.writeAsBytes(imageBytes);
 
@@ -793,7 +813,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               List<String> imagePaths = [];
               for (String base64Image in newItem.imageUrls!) {
                 List<int> imageBytes = base64Decode(base64Image);
-                String fileName = 'imported_image_${Uuid().v4()}.jpg';
+                String fileName = 'imported_image_${const Uuid().v4()}.jpg';
                 File tempImage = File('${file.parent.path}/$fileName');
                 await tempImage.writeAsBytes(imageBytes);
 
