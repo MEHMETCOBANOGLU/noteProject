@@ -447,7 +447,8 @@ class _EditItemPageState extends State<EditItemPage> {
 
         bool success = await _sqliteDatasource.addOrUpdateNote(
           Item(
-            id: const Uuid().v4(),
+            // id: const Uuid().v4(),
+            id: widget.item.id,
             headerValue: _titleController.text,
             subtitle: _subtitleController.text,
             expandedValue: items,
