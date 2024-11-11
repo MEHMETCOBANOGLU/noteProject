@@ -595,64 +595,69 @@ class _AddItemPageState extends State<AddItemPage> {
                   thumbVisibility: true,
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      shrinkWrap: true,
-                      itemCount: _itemControllers.length,
-                      itemBuilder: (context, index) {
-                        if (_focusNodes.length <= index) {
-                          _focusNodes.add(FocusNode()); // Add missing FocusNode
-                        }
+                    child: ScrollConfiguration(
+                      behavior:
+                          NoThumbScrollBehavior(), // Özel ScrollBehavior'u burada uyguladık
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        shrinkWrap: true,
+                        itemCount: _itemControllers.length,
+                        itemBuilder: (context, index) {
+                          if (_focusNodes.length <= index) {
+                            _focusNodes
+                                .add(FocusNode()); // Eksik FocusNode'u ekledik
+                          }
 
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _itemControllers[index],
-                                  focusNode: _focusNodes[index],
-                                  keyboardType: TextInputType.multiline,
-                                  minLines: 1,
-                                  maxLines: null,
-                                  decoration: InputDecoration(
-                                    hintText: 'Item ${index + 1}', // #itemm
-                                    prefixIcon: _imagePaths[index] != null
-                                        ? Padding(
-                                            padding: const EdgeInsets.only(
-                                                right: 8.0, bottom: 3.0),
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(3.0),
-                                              child: Image.file(
-                                                File(_imagePaths[index]!),
-                                                width: 50,
-                                                height: 50,
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _itemControllers[index],
+                                    focusNode: _focusNodes[index],
+                                    keyboardType: TextInputType.multiline,
+                                    minLines: 1,
+                                    maxLines: null,
+                                    decoration: InputDecoration(
+                                      hintText: 'Item ${index + 1}', // #itemm
+                                      prefixIcon: _imagePaths[index] != null
+                                          ? Padding(
+                                              padding: const EdgeInsets.only(
+                                                  right: 8.0, bottom: 3.0),
+                                              child: ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(3.0),
+                                                child: Image.file(
+                                                  File(_imagePaths[index]!),
+                                                  width: 50,
+                                                  height: 50,
+                                                ),
                                               ),
-                                            ),
-                                          )
-                                        : IconButton(
-                                            padding: EdgeInsets.zero,
-                                            onPressed: () => _pickImage(index),
-                                            icon: Icon(Icons.image,
-                                                size: 50,
-                                                color: Colors.grey.shade400),
-                                          ),
-                                    suffixIcon: SizedBox(
-                                      width: 70,
-                                      height: 40,
-                                      child: Stack(
-                                        children: [
-                                          Positioned(
-                                            left: 0,
-                                            child: IconButton(
+                                            )
+                                          : IconButton(
                                               padding: EdgeInsets.zero,
-                                              constraints:
-                                                  const BoxConstraints(),
-                                              key: _menuKeys[index],
-                                              icon: const Icon(
-                                                  Icons.more_vert_sharp),
-                                              onPressed: () => showCustomMenu(
+                                              onPressed: () =>
+                                                  _pickImage(index),
+                                              icon: Icon(Icons.image,
+                                                  size: 50,
+                                                  color: Colors.grey.shade400),
+                                            ),
+                                      suffixIcon: SizedBox(
+                                        width: 70,
+                                        height: 40,
+                                        child: Stack(
+                                          children: [
+                                            Positioned(
+                                              left: 0,
+                                              child: IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                key: _menuKeys[index],
+                                                icon: const Icon(
+                                                    Icons.more_vert_sharp),
+                                                onPressed: () => showCustomMenu(
                                                   //#3noktaa
                                                   context,
                                                   index,
@@ -671,42 +676,46 @@ class _AddItemPageState extends State<AddItemPage> {
                                                   (int index) =>
                                                       _removeOption(index),
                                                   (String pastedText) {
-                                                setState(() {
-                                                  _itemControllers[index].text =
-                                                      pastedText;
-                                                });
-                                              }, (String imagePath) {
-                                                setState(() {
-                                                  _imagePaths[index] =
-                                                      imagePath;
-                                                });
-                                              }),
+                                                    setState(() {
+                                                      _itemControllers[index]
+                                                          .text = pastedText;
+                                                    });
+                                                  },
+                                                  (String imagePath) {
+                                                    setState(() {
+                                                      _imagePaths[index] =
+                                                          imagePath;
+                                                    });
+                                                  },
+                                                ),
+                                              ),
                                             ),
-                                          ),
-                                          Positioned(
-                                            left: 30,
-                                            child: IconButton(
-                                              padding: EdgeInsets.zero,
-                                              constraints:
-                                                  const BoxConstraints(),
-                                              icon: const Icon(
-                                                  //ite silme ikoun #sill
+                                            Positioned(
+                                              left: 30,
+                                              child: IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                icon: const Icon(
+                                                  // İtem silme ikonu #sill
                                                   Icons.remove_circle_outline,
-                                                  color: Colors.red),
-                                              onPressed: () =>
-                                                  _removeItemField(index),
+                                                  color: Colors.red,
+                                                ),
+                                                onPressed: () =>
+                                                    _removeItemField(index),
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -735,5 +744,15 @@ class _AddItemPageState extends State<AddItemPage> {
         ),
       ),
     );
+  }
+}
+
+//windows uygulamaları için scroll behavior ayarlamak için
+class NoThumbScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Widget buildScrollbar(
+      BuildContext context, Widget child, ScrollableDetails details) {
+    // Varsayılan kaydırma çubuğunu oluşturmadan child'ı döndürür
+    return child;
   }
 }

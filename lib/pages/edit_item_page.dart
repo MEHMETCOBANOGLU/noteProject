@@ -845,112 +845,118 @@ class _EditItemPageState extends State<EditItemPage> {
                   thumbVisibility: true,
                   child: Padding(
                     padding: const EdgeInsets.only(right: 8.0),
-                    child: ReorderableListView.builder(
-                      scrollController: _scrollController,
-                      itemCount: _itemControllers.length,
-                      onReorder: (int oldIndex, int newIndex) {
-                        setState(() {
-                          if (newIndex > oldIndex) {
-                            newIndex -= 1;
+                    child: ScrollConfiguration(
+                      behavior:
+                          NoThumbScrollBehavior(), // Özel ScrollBehavior'u burada uyguladık
+                      child: ReorderableListView.builder(
+                        buildDefaultDragHandles: false,
+                        scrollController: _scrollController,
+                        itemCount: _itemControllers.length,
+                        onReorder: (int oldIndex, int newIndex) {
+                          setState(() {
+                            if (newIndex > oldIndex) {
+                              newIndex -= 1;
+                            }
+
+                            final controller =
+                                _itemControllers.removeAt(oldIndex);
+                            final image = _selectedImages.removeAt(oldIndex);
+                            final imagePath =
+                                _existingImagePaths.removeAt(oldIndex);
+
+                            _itemControllers.insert(newIndex, controller);
+                            _selectedImages.insert(newIndex, image);
+                            _existingImagePaths.insert(newIndex, imagePath);
+                          });
+                        },
+                        itemBuilder: (context, index) {
+                          if (_focusNodes.length <= index) {
+                            _focusNodes.add(FocusNode());
                           }
 
-                          final controller =
-                              _itemControllers.removeAt(oldIndex);
-                          final image = _selectedImages.removeAt(oldIndex);
-                          final imagePath =
-                              _existingImagePaths.removeAt(oldIndex);
-
-                          _itemControllers.insert(newIndex, controller);
-                          _selectedImages.insert(newIndex, image);
-                          _existingImagePaths.insert(newIndex, imagePath);
-                        });
-                      },
-                      itemBuilder: (context, index) {
-                        if (_focusNodes.length <= index) {
-                          _focusNodes.add(FocusNode());
-                        }
-
-                        return ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          key: ValueKey(index),
-                          //Liste sıra değiştirme #Reorderablee,dragg,dropp
-                          leading: ReorderableDragStartListener(
-                            index: index,
-                            child: const Icon(
-                              Icons.drag_handle,
-                              size: 20,
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            key: ValueKey(index),
+                            // Liste sıra değiştirme #Reorderable, drag, drop
+                            leading: ReorderableDragStartListener(
+                              index: index,
+                              child: const Icon(
+                                Icons.drag_handle,
+                                size: 20,
+                              ),
                             ),
-                          ),
-                          title: TextField(
-                            key: _menuKeys[index],
-                            controller: _itemControllers[index],
-                            focusNode: _focusNodes[index],
-                            keyboardType: TextInputType.multiline,
-                            minLines: 1,
-                            maxLines: null,
-                            decoration: InputDecoration(
-                              hintText: 'Item ${index + 1}',
-                              prefixIcon: (index < _existingImagePaths.length &&
-                                      _existingImagePaths[index] != null &&
-                                      _existingImagePaths[index]!.isNotEmpty)
-                                  ? Padding(
-                                      padding: const EdgeInsets.only(
-                                          right: 8.0, bottom: 8.0),
-                                      child: Image.file(
-                                        File(_existingImagePaths[index]!),
-                                        width: 40,
-                                        height: 40,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                const Icon(Icons.error),
-                                      ),
-                                    )
-                                  : IconButton(
-                                      padding: EdgeInsets.zero,
-                                      onPressed: () => _pickImage(index),
-                                      icon: Icon(Icons.image,
-                                          size: 50,
-                                          color: Colors.grey.shade400),
-                                    ),
-                              suffixIcon: SizedBox(
-                                width: 70,
-                                height: 40,
-                                child: Stack(
-                                  children: [
-                                    Positioned(
-                                      left: 0,
-                                      child: IconButton(
-                                        icon: const Icon(Icons.more_vert_sharp),
+                            title: TextField(
+                              key: _menuKeys[index],
+                              controller: _itemControllers[index],
+                              focusNode: _focusNodes[index],
+                              keyboardType: TextInputType.multiline,
+                              minLines: 1,
+                              maxLines: null,
+                              decoration: InputDecoration(
+                                hintText: 'Item ${index + 1}',
+                                prefixIcon: (index <
+                                            _existingImagePaths.length &&
+                                        _existingImagePaths[index] != null &&
+                                        _existingImagePaths[index]!.isNotEmpty)
+                                    ? Padding(
+                                        padding: const EdgeInsets.only(
+                                            right: 8.0, bottom: 8.0),
+                                        child: Image.file(
+                                          File(_existingImagePaths[index]!),
+                                          width: 40,
+                                          height: 40,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  const Icon(Icons.error),
+                                        ),
+                                      )
+                                    : IconButton(
                                         padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        // key: _menuKeys[index],
-                                        onPressed: () {
-                                          _showCustomMenu(
-                                              context, index, _menuKeys[index]);
-                                        },
+                                        onPressed: () => _pickImage(index),
+                                        icon: Icon(Icons.image,
+                                            size: 50,
+                                            color: Colors.grey.shade400),
                                       ),
-                                    ),
-                                    Positioned(
-                                      left: 30,
-                                      child: IconButton(
-                                        icon: const Icon(
-                                            Icons.remove_circle_outline,
-                                            color: Colors.red),
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                        onPressed: () {
-                                          _removeItemField(index);
-                                        },
+                                suffixIcon: SizedBox(
+                                  width: 70,
+                                  height: 40,
+                                  child: Stack(
+                                    children: [
+                                      Positioned(
+                                        left: 0,
+                                        child: IconButton(
+                                          icon:
+                                              const Icon(Icons.more_vert_sharp),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: () {
+                                            _showCustomMenu(context, index,
+                                                _menuKeys[index]);
+                                          },
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                      Positioned(
+                                        left: 30,
+                                        child: IconButton(
+                                          icon: const Icon(
+                                              Icons.remove_circle_outline,
+                                              color: Colors.red),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          onPressed: () {
+                                            _removeItemField(index);
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -979,5 +985,15 @@ class _EditItemPageState extends State<EditItemPage> {
         ),
       ),
     );
+  }
+}
+
+//windows uygulamaları için scroll behavior ayarlamak için
+class NoThumbScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Widget buildScrollbar(
+      BuildContext context, Widget child, ScrollableDetails details) {
+    // Kaydırma çubuğu oluşturmadan child'ı direkt döndürür
+    return child;
   }
 }

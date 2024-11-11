@@ -2,14 +2,14 @@
 # cmake_minimum_required(VERSION 3.14)
 cmake_minimum_required(VERSION 3.14...3.25)
 
-project(proje1 LANGUAGES CXX)
+project(Tablify LANGUAGES CXX)
 
 # Visual Studio 2022 araç setini kullanacak şekilde yapılandırma
 set(CMAKE_GENERATOR_TOOLSET "v143") # Mevcut Visual Studio sürümünüze göre güncel araç setini belirtiyor
 
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
-set(BINARY_NAME "proje1")
+set(BINARY_NAME "Tablify")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.

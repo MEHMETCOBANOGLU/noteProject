@@ -53,39 +53,7 @@ class MyApp extends StatelessWidget {
       useInheritedMediaQuery: true, // DevicePreview ile uyumluluk için
       locale: DevicePreview.locale(context), // Dil ayarları
       builder: DevicePreview.appBuilder, // Ekran önizlemesi için
-      theme: ThemeData(
-        appBarTheme: const AppBarTheme(color: AppColors.backgroundColor),
-        primaryColor: AppColors.backgroundColor,
-        hintColor: AppColors.accentColor,
-        scaffoldBackgroundColor: AppColors.opaqueBackgroundColor,
-        textTheme: const TextTheme(
-            // bodyLarge: TextStyle(color: AppColors.textColorPrimary),
-            // bodyMedium: TextStyle(color: AppColors.textColorSecondary),
-            ),
-        colorScheme: ColorScheme.fromSwatch().copyWith(
-          primary: AppColors.accentColor,
-        ),
-        inputDecorationTheme: const InputDecorationTheme(
-          enabledBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: Colors.black),
-          ),
-          focusedBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: AppColors.accentColor),
-          ),
-        ),
-        textSelectionTheme:
-            const TextSelectionThemeData(cursorColor: AppColors.accentColor),
-        snackBarTheme: const SnackBarThemeData(
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          elevation: 2,
-          showCloseIcon: true,
-          closeIconColor: Colors.white,
-          contentTextStyle: TextStyle(
-            color: Colors.white, // Yazı rengi
-          ),
-        ),
-      ),
+      theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
       home: const HomePage(),
     );

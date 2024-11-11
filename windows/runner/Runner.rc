@@ -17,7 +17,9 @@
 // English (United States) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
-LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+//LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+LANGUAGE LANG_TURKISH, SUBLANG_DEFAULT
+
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -52,7 +54,7 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_APP_ICON            ICON                    "resources\\app_icon.ico"
+IDI_APP_ICON            ICON                    "resources\\logo.ico"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -89,14 +91,14 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "proje1" "\0"
-            VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "proje1" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2024 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "proje1.exe" "\0"
-            VALUE "ProductName", "proje1" "\0"
-            VALUE "ProductVersion", VERSION_AS_STRING "\0"
+            VALUE "CompanyName", "CbnTech" "\0"
+            VALUE "FileDescription", "Tablify" "\0"
+            VALUE "FileVersion", "1.0.0" "\0" // veya istediğiniz versiyon
+            VALUE "InternalName", "Tablify" "\0"
+            VALUE "LegalCopyright", "© 2024 CbnTech. All rights reserved." "\0"
+            VALUE "OriginalFilename", "Tablify.exe" "\0"
+            VALUE "ProductName", "Tablify" "\0"
+            VALUE "ProductVersion", "1.0.0" "\0" // veya istediğiniz versiyon
         END
     END
     BLOCK "VarFileInfo"

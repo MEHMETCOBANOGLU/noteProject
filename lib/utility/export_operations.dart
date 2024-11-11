@@ -11,7 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
-
+import 'package:path/path.dart' as path;
 import '../data/database.dart';
 import '../model/items.dart';
 
@@ -103,26 +103,27 @@ Future<void> exportToFirebase(BuildContext context) async {
 
 //Exporta dosya olarak paylaşma fonksiyonu #dosyaa,paylaşş
 Future<void> exportAsFile(BuildContext context) async {
-  // Depolama iznini kontrol ediyoruz
-  var status = await Permission.storage.status;
-  if (!status.isGranted) {
-    if (Platform.isAndroid &&
-        await Permission.manageExternalStorage.request().isGranted) {
-      status = PermissionStatus.granted;
-    } else {
-      status = await Permission.storage.request();
-      if (status.isPermanentlyDenied) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Depolama izni ayarlardan verilmelidir.')),
-        );
-        await openAppSettings();
-        return;
-      } else if (!status.isGranted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Depolama izni verilmedi.')),
-        );
-        return;
+  // Sadece Android'de depolama izinlerini kontrol ediyoruz
+  if (Platform.isAndroid) {
+    var status = await Permission.storage.status;
+    if (!status.isGranted) {
+      if (await Permission.manageExternalStorage.request().isGranted) {
+        status = PermissionStatus.granted;
+      } else {
+        status = await Permission.storage.request();
+        if (status.isPermanentlyDenied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Depolama izni ayarlardan verilmelidir.')),
+          );
+          await openAppSettings();
+          return;
+        } else if (!status.isGranted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Depolama izni verilmedi.')),
+          );
+          return;
+        }
       }
     }
   }
@@ -139,7 +140,7 @@ Future<void> exportAsFile(BuildContext context) async {
           for (String imageUrl in note.imageUrls!) {
             File imageFile = File(imageUrl);
             if (await imageFile.exists()) {
-              String base64Image = base64Encode(imageFile.readAsBytesSync());
+              String base64Image = base64Encode(await imageFile.readAsBytes());
               base64Images.add(base64Image);
             }
           }
@@ -153,13 +154,39 @@ Future<void> exportAsFile(BuildContext context) async {
     List<int> binaryData = utf8.encode(jsonData);
     List<int>? compressedData = GZipEncoder().encode(binaryData);
 
-    final directory = await getApplicationDocumentsDirectory();
+    // Platforma uygun dizini belirliyoruz
+    Directory? directory;
+
+    if (Platform.isAndroid || Platform.isIOS) {
+      // Mobil platformlarda uygulama belgeleri dizinini kullanıyoruz
+      directory = await getApplicationDocumentsDirectory();
+    } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      // Masaüstü platformlarda indirilenler dizinini kullanıyoruz
+      directory = await getDownloadsDirectory();
+      // Eğer indirilenler dizini bulunamazsa, uygulama belgeleri dizinini kullanıyoruz
+      if (directory == null) {
+        directory = await getApplicationDocumentsDirectory();
+      }
+    } else {
+      // Diğer platformlarda geçici dizini kullanıyoruz
+      directory = await getTemporaryDirectory();
+    }
+
+    if (directory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Dosya kaydedilecek dizin bulunamadı.'),
+      ));
+      return;
+    }
+
     String formattedDate =
         DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
-    final file =
-        File('${directory.path}/Tablify_dataExport_$formattedDate.bin');
+    String filePath =
+        path.join(directory.path, 'Tablify_dataExport_$formattedDate.bin');
+    final file = File(filePath);
     await file.writeAsBytes(compressedData!);
 
+    // Dosyayı paylaşma işlemi
     await Share.shareXFiles([XFile(file.path)],
         text: 'Here is your data export');
 
@@ -177,80 +204,108 @@ Future<void> exportAsFile(BuildContext context) async {
 }
 
 //Export Dosyayı cihazın indirilenler klasörüne kaydetme #dosyalarımakaydett
-// import 'package:permission_handler/permission_handler.dart';
-
 Future<void> saveToDownloads(BuildContext context) async {
   try {
-    // Handle storage permissions
-    var status = await Permission.storage.status;
-    print("Initial storage permission status: $status");
+    // Sadece Android'de depolama izinlerini kontrol ediyoruz
+    if (Platform.isAndroid) {
+      var status = await Permission.storage.status;
+      print("Initial storage permission status: $status");
 
-    if (!status.isGranted) {
-      // Request MANAGE_EXTERNAL_STORAGE for Android 11+
-      if (Platform.isAndroid &&
-          await Permission.manageExternalStorage.request().isGranted) {
-        status = PermissionStatus.granted;
-      } else {
-        status = await Permission.storage.request();
-        print("After permission request: $status");
-      }
-    }
-
-    if (status.isGranted) {
-      // Process file saving operations
-      List<TabItem> allTabs = await SQLiteDatasource().getTabs();
-      Map<String, dynamic> allData = {};
-
-      for (TabItem tab in allTabs) {
-        List<Item> tabNotes = await SQLiteDatasource().getNotes(tab.id);
-
-        for (var note in tabNotes) {
-          if (note.imageUrls != null && note.imageUrls!.isNotEmpty) {
-            List<String> base64Images = [];
-            for (String imageUrl in note.imageUrls!) {
-              File imageFile = File(imageUrl);
-              if (await imageFile.exists()) {
-                String base64Image = base64Encode(imageFile.readAsBytesSync());
-                base64Images.add(base64Image);
-              }
-            }
-            note.imageUrls = base64Images;
-          }
+      if (!status.isGranted) {
+        // Android 11 ve üzeri için MANAGE_EXTERNAL_STORAGE izni
+        if (Platform.isAndroid &&
+            await Permission.manageExternalStorage.request().isGranted) {
+          status = PermissionStatus.granted;
+        } else {
+          status = await Permission.storage.request();
+          print("After permission request: $status");
         }
-
-        allData[tab.name] = tabNotes.map((e) => e.toMap()).toList();
       }
 
-      String jsonData = jsonEncode(allData);
-      List<int> binaryData = utf8.encode(jsonData);
-      List<int>? compressedData = GZipEncoder().encode(binaryData);
-
-      // Save to Downloads folder
-      String formattedDate =
-          DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
-      String filePath =
-          '/storage/emulated/0/Download/Tablify_dataExport_$formattedDate.bin';
-      final file = File(filePath);
-      await file.writeAsBytes(compressedData!);
-
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Dosya indirilenler klasörüne basarıyla kaydedildi.'),
-      ));
-      Navigator.of(context).pop();
-    } else if (status.isPermanentlyDenied) {
-      print("Permission permanently denied");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'Depolama izni kalıcı olarak reddedildi. Lütfen ayarlardan etkinleştirin.')),
-      );
-      await openAppSettings();
-    } else {
-      print("Permission denied");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Depolama izni reddedildi.')),
-      );
+      if (!status.isGranted) {
+        if (status.isPermanentlyDenied) {
+          print("Permission permanently denied");
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Depolama izni kalıcı olarak reddedildi. Lütfen ayarlardan etkinleştirin.')),
+          );
+          await openAppSettings();
+        } else {
+          print("Permission denied");
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Depolama izni reddedildi.')),
+          );
+        }
+        return;
+      }
     }
+
+    // Dosya kaydetme işlemleri
+    List<TabItem> allTabs = await SQLiteDatasource().getTabs();
+    Map<String, dynamic> allData = {};
+
+    for (TabItem tab in allTabs) {
+      List<Item> tabNotes = await SQLiteDatasource().getNotes(tab.id);
+
+      for (var note in tabNotes) {
+        if (note.imageUrls != null && note.imageUrls!.isNotEmpty) {
+          List<String> base64Images = [];
+          for (String imageUrl in note.imageUrls!) {
+            File imageFile = File(imageUrl);
+            if (await imageFile.exists()) {
+              String base64Image = base64Encode(imageFile.readAsBytesSync());
+              base64Images.add(base64Image);
+            }
+          }
+          note.imageUrls = base64Images;
+        }
+      }
+
+      allData[tab.name] = tabNotes.map((e) => e.toMap()).toList();
+    }
+
+    String jsonData = jsonEncode(allData);
+    List<int> binaryData = utf8.encode(jsonData);
+    List<int>? compressedData = GZipEncoder().encode(binaryData);
+
+    // Platforma uygun dizini alıyoruz
+    Directory? directory;
+
+    if (Platform.isAndroid) {
+      // Android'de indirilenler klasörünü alıyoruz
+      directory = Directory('/storage/emulated/0/Download');
+    } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      // Masaüstü platformlarda indirilenler klasörünü alıyoruz
+      directory = await getDownloadsDirectory();
+    } else if (Platform.isIOS) {
+      // iOS'ta belgeler dizinini kullanıyoruz
+      directory = await getApplicationDocumentsDirectory();
+    } else {
+      // Diğer platformlar için geçici dizini kullanıyoruz
+      directory = await getTemporaryDirectory();
+    }
+
+    if (directory == null) {
+      print('Dizin bulunamadı');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Dosya kaydedilecek dizin bulunamadı.'),
+      ));
+      return;
+    }
+
+    String formattedDate =
+        DateFormat('dd.MM.yyyy_HH.mm').format(DateTime.now());
+    String fileName = 'Tablify_dataExport_$formattedDate.bin';
+    String filePath = path.join(directory.path, fileName);
+
+    final file = File(filePath);
+    await file.writeAsBytes(compressedData!);
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Dosya başarıyla indirilenler klasörüne kaydedildi'),
+    ));
+    Navigator.of(context).pop();
   } catch (e) {
     print('Error saving file: $e');
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -261,26 +316,27 @@ Future<void> saveToDownloads(BuildContext context) async {
 
 //Export HTML dosyası olarak Firebase'e yükleme #htmll
 Future<void> exportAsHtml(BuildContext context) async {
-  // Depolama iznini kontrol ediyoruz
-  var status = await Permission.storage.status;
-  if (!status.isGranted) {
-    if (Platform.isAndroid &&
-        await Permission.manageExternalStorage.request().isGranted) {
-      status = PermissionStatus.granted;
-    } else {
-      status = await Permission.storage.request();
-      if (status.isPermanentlyDenied) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Depolama izni ayarlardan verilmelidir.')),
-        );
-        await openAppSettings();
-        return;
-      } else if (!status.isGranted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Depolama izni verilmedi.')),
-        );
-        return;
+  // Depolama iznini sadece Android'de kontrol ediyoruz
+  if (Platform.isAndroid) {
+    var status = await Permission.storage.status;
+    if (!status.isGranted) {
+      if (await Permission.manageExternalStorage.request().isGranted) {
+        status = PermissionStatus.granted;
+      } else {
+        status = await Permission.storage.request();
+        if (status.isPermanentlyDenied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Depolama izni ayarlardan verilmelidir.')),
+          );
+          await openAppSettings();
+          return;
+        } else if (!status.isGranted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Depolama izni verilmedi.')),
+          );
+          return;
+        }
       }
     }
   }
@@ -325,9 +381,32 @@ Future<void> exportAsHtml(BuildContext context) async {
     }
     htmlContent += "</body></html>";
 
-    final directory = await getApplicationDocumentsDirectory();
+    // Platforma uygun dizini alıyoruz
+    Directory? directory;
+    if (Platform.isAndroid) {
+      directory = await getExternalStorageDirectory();
+      if (directory == null) {
+        // Eğer getExternalStorageDirectory null dönerse, indirilenler klasörünü kullanabilirsiniz
+        directory = Directory('/storage/emulated/0/Download');
+      }
+    } else if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      directory = await getDownloadsDirectory();
+    } else if (Platform.isIOS) {
+      directory = await getApplicationDocumentsDirectory();
+    } else {
+      directory = await getTemporaryDirectory();
+    }
+
+    if (directory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Dosya kaydedilecek dizin bulunamadı.'),
+      ));
+      return;
+    }
+
     String fileName = 'export_${const Uuid().v4()}.html';
-    File file = File('${directory.path}/$fileName');
+    String filePath = path.join(directory.path, fileName);
+    File file = File(filePath);
     await file.writeAsString(htmlContent);
 
     final FirebaseStorage storage = FirebaseStorage.instance;
@@ -335,14 +414,23 @@ Future<void> exportAsHtml(BuildContext context) async {
         await storage.ref('tablify/exports/html/$fileName').putFile(file);
     String downloadUrl = await uploadTask.ref.getDownloadURL();
 
-    await launch(downloadUrl);
+    // URL'yi açıyoruz
+    Uri url = Uri.parse(downloadUrl);
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('URL açılamadı.')),
+      );
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text('HTML linki kopyalandı ve tarayıcı açılıyor...'),
     ));
   } catch (e) {
     print('Hata: $e');
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('HTML export sırasında bir hata oluştu.'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('HTML export sırasında bir hata oluştu.')),
+    );
   }
 }

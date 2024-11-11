@@ -1,32 +1,74 @@
 import 'package:flutter/material.dart';
 
-class AppColors {
-  // Ana Renkler (Yeşil ve uyumlu renkler)
-  static const Color backgroundColor =
-      Color.fromARGB(255, 232, 245, 233); // green[50]
-  static const Color secondaryColor = Colors.green;
-  static const Color accentColor = Colors.brown;
+class AppTheme extends ChangeNotifier {
+  ThemeMode themeMode = ThemeMode.light;
 
-  // Arka Plan Renkleri
-  static const Color opaqueBackgroundColor =
-      Color.fromARGB(255, 251, 252, 250); // Çok açık yeşil arka plan
+  ThemeData get theme => themeMode == ThemeMode.light ? lightTheme : darkTheme;
 
-  static const Color cardBackgroundColor =
-      Color(0xFFFFFFFF); // Kart arka planı beyaz
-  static const Color darkBackgroundColor =
-      Color(0xFF388E3C); // Koyu yeşil arka plan
+  void toggleTheme() {
+    themeMode = themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    notifyListeners();
+  }
 
-  // Metin Renkleri
-  static const Color textColorPrimary =
-      Color(0xFF2E7D32); // Koyu yeşil metin rengi
-  static const Color textColorSecondary =
-      Color(0xFF616161); // Gri ikincil metin rengi
-  static const Color textColorOnAccent =
-      Color(0xFF212121); // Vurgulu renkler üzerindeki metin için koyu renk
+  static ThemeData get lightTheme => ThemeData(
+        fontFamily: 'Inter',
+        scaffoldBackgroundColor: Color.fromARGB(255, 251, 252, 250),
+        appBarTheme:
+            const AppBarTheme(color: Color.fromARGB(255, 232, 245, 233)),
+        primaryColor: Color.fromARGB(255, 232, 245, 233),
+        hintColor: Colors.brown,
+        textTheme: const TextTheme(
+            // bodyLarge: TextStyle(color: AppColors.textColorPrimary),
+            // bodyMedium: TextStyle(color: AppColors.textColorSecondary),
+            ),
+        // colorScheme: ColorScheme.fromSwatch().copyWith(
+        //   primary: Colors.brown,
+        // ),
+        inputDecorationTheme: const InputDecorationTheme(
+          enabledBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: Colors.black),
+          ),
+          focusedBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: Colors.brown),
+          ),
+        ),
+        textSelectionTheme:
+            const TextSelectionThemeData(cursorColor: Colors.brown),
+        snackBarTheme: const SnackBarThemeData(
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          elevation: 2,
+          showCloseIcon: true,
+          closeIconColor: Colors.white,
+          contentTextStyle: TextStyle(
+            color: Colors.white, // Yazı rengi
+          ),
+        ),
+        colorScheme: ColorScheme.fromSwatch().copyWith(
+          primary: Colors.brown,
+        ),
+        // iconButtonTheme: IconButtonThemeData(
+        //   style: IconButton.styleFrom(
+        //     foregroundColor: const Color(0xFF42B4CA),
+        //   ),
+        // ),
+      );
 
-  // Diğer Renkler (Yeşil ile uyumlu tamamlayıcı renkler)
-  static const Color successColor = Color(0xFF4CAF50); // Başarı yeşili
-  static const Color errorColor = Color(0xFFD32F2F); // Hata için kırmızı
-  static const Color warningColor = Color(0xFFFF9800); // Uyarı için turuncu
-  static const Color infoColor = Color(0xFF03A9F4);
+  static ThemeData get darkTheme => ThemeData(
+        fontFamily: 'Inter',
+        scaffoldBackgroundColor: const Color(0xFF414A4C),
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFF97C3E9),
+          secondary: Color(0xFF778899),
+          surface: Color(0xFF414A4C),
+          onSurface: Colors.white,
+          error: Color(0xFF414A4C),
+          tertiary: Color(0xFFB5C4C7),
+        ),
+        iconButtonTheme: IconButtonThemeData(
+          style: IconButton.styleFrom(
+            foregroundColor: const Color(0xFF97C3E9),
+          ),
+        ),
+      );
 }
